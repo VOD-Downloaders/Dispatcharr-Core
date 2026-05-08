@@ -16,7 +16,8 @@ pub enum CliError
     NoSeriesId,
     InvalidSeriesId(String),
     NoApiKey,
-    InvalidPath
+    InvalidPath(String),
+    InvalidRetryCount(String),
 }
 
 /////////////////////////////////////////////////////
@@ -28,8 +29,12 @@ pub struct DownloadOptions
     pub url: String, // ex. http://192.168.2.2:9191 or https://dispatcharr.example.com
     pub series_id: u32,
     pub api_key: String,
-    pub output_folder: PathBuf
+    pub output_folder: PathBuf,
+    pub log_file: PathBuf,
+    pub max_reties: u32,
     // TODO: Add more specifiers about what seasons or specific episodes
+    
+    pub verbose: bool,
 }
 
 /////////////////////////////////////////////////////
@@ -41,7 +46,10 @@ pub fn parse_cli_options(cli_options: Vec<CliOption>) -> Result<DownloadOptions,
         url: String::new(),
         series_id: 0,
         api_key: String::new(),
-        output_folder: PathBuf::from(".")
+        output_folder: PathBuf::from("."),
+        log_file: PathBuf::from("vod_download.log"),
+        max_reties: 3,
+        verbose: false
     };
 
     let mut i: usize = 0;
@@ -57,8 +65,34 @@ pub fn parse_cli_options(cli_options: Vec<CliOption>) -> Result<DownloadOptions,
             {
                 match value.as_str()
                 {
-                    "u" => { options.url = parse_url(value)?; }
-                    "o" => { options.output_folder = parse_output_folder(value)?; }
+                    "u" | "url" | "baseurl" |
+                    "o" | "output" | "outputfolder" | 
+                    "log" | "logfile" => 
+                    {
+                        if let Some(next) = cli_options.get(i + 1) && let CliOption::Value(flag_value) = next
+                        {
+                            match value.as_str()
+                            {
+                                "u" => { options.url = parse_url(flag_value)?; },
+                                "baseurl" => { options.url = parse_url(flag_value)?; },
+
+                                "o" => { options.output_folder = parse_output_folder(flag_value)?; },
+                                "output" => { options.output_folder = parse_output_folder(flag_value)?; },
+                                "outputfolder" => { options.output_folder = parse_output_folder(flag_value)?; },
+
+                                "log" => { options.log_file = parse_output_folder(flag_value)?; },
+                                "logfile" => { options.log_file = parse_output_folder(flag_value)?; },
+                                _ => { panic!("Internal logic error, a flag was set in top level match statement but not in bottom level."); }
+                            }
+
+                            // Skip the next value
+                            i += 1;
+                        }
+                    }
+
+                    "v" => { options.verbose = true; },
+                    "verbose" => { options.verbose = true; },
+
                     _ => { return Err(CliError::UnknownFlag(format!("Unknown flag: '-{}'", value))); }
                 }
             },
@@ -85,6 +119,16 @@ pub fn parse_cli_options(cli_options: Vec<CliOption>) -> Result<DownloadOptions,
                     "outputfolder" => { options.output_folder = parse_output_folder(value)?; },
                     "output-folder" => { options.output_folder = parse_output_folder(value)?; },
                     "output_folder" => { options.output_folder = parse_output_folder(value)?; },
+
+                    "log" => { options.log_file = parse_log_file(value)?; },
+                    "logfile" => { options.log_file = parse_log_file(value)?; },
+                    "log-file" => { options.log_file = parse_log_file(value)?; },
+                    "log_file" => { options.log_file = parse_log_file(value)?; },
+
+                    "retries" => { options.max_reties = parse_max_retries(value)?; },
+                    "maxretries" => { options.max_reties = parse_max_retries(value)?; },
+                    "max-retries" => { options.max_reties = parse_max_retries(value)?; },
+                    "max_retries" => { options.max_reties = parse_max_retries(value)?; },
                     
                     _ => { return Err(CliError::UnknownOption(format!("Unknown option: '--{}=...'", key))); }
                 }
@@ -97,6 +141,7 @@ pub fn parse_cli_options(cli_options: Vec<CliOption>) -> Result<DownloadOptions,
     if options.series_id == 0 { return Err(CliError::NoSeriesId); }
     if options.url == "" { return Err(CliError::NoUrl); }
     if options.api_key == "" { return Err(CliError::NoApiKey); }
+    if options.max_reties == 0 { return Err(CliError::InvalidRetryCount("Retry count must be greater than zero.".to_string())); }
 
     Ok(options)
 }
@@ -130,16 +175,35 @@ fn parse_api_key(api_key: &str) -> Result<String, CliError>
     Ok(api_key.to_string())
 }
 
-fn parse_output_folder(api_key: &str) -> Result<PathBuf, CliError>
+fn parse_output_folder(output_folder: &str) -> Result<PathBuf, CliError>
 {
-    let path = api_key.parse::<PathBuf>().unwrap();
+    let path = output_folder.parse::<PathBuf>().unwrap();
 
     if !path.is_dir() 
     {
-        Err(CliError::InvalidPath)
+        Err(CliError::InvalidPath("Expected a folder as an output destination.".to_string()))
     }
     else 
     {
         Ok(path)    
     }
+}
+
+fn parse_log_file(log_file: &str) -> Result<PathBuf, CliError>
+{
+    let path = log_file.parse::<PathBuf>().unwrap();
+
+    if !path.is_file() 
+    {
+        Err(CliError::InvalidPath("Expected a file as a log destination.".to_string()))
+    }
+    else 
+    {
+        Ok(path)    
+    }
+}
+
+fn parse_max_retries(max_retries: &str) -> Result<u32, CliError>
+{
+    Ok(max_retries.parse::<u32>().map_err(|_error| { return CliError::InvalidRetryCount(format!("'{}' is not an integer.", max_retries))})?)
 }

@@ -38,7 +38,7 @@ pub enum RetrieveError
 {
     FailedToSetupHTTP,
     GETProviderInfoFailed,
-    ProviderInfoReturnedErrorStatus,
+    ProviderInfoReturnedErrorStatus(reqwest::StatusCode),
     FailedToParseJSON,
     Other(String)
 }
@@ -62,8 +62,10 @@ pub fn retrieve_episodes(options: &DownloadOptions) -> Result<(Episodes, M3UID),
         .send()
         .map_err(|_error| { return RetrieveError::GETProviderInfoFailed; })?;
 
+    let status = response.status();
+
     let info = response.error_for_status()
-        .map_err(|_error| { return RetrieveError::ProviderInfoReturnedErrorStatus; })?;
+        .map_err(|_error| { return RetrieveError::ProviderInfoReturnedErrorStatus(status); })?;
 
     let json = info.json::<ProviderInfoResponse>()
         .map_err(|_error| { return RetrieveError::FailedToParseJSON; })?;
@@ -84,7 +86,8 @@ pub fn retrieve_episodes(options: &DownloadOptions) -> Result<(Episodes, M3UID),
                 .episodes.push(Episode { 
                     uuid: episode.uuid, 
                     episode_number: episode.episode_number, 
-                    title: episode.title
+                    title: episode.title,
+                    container_extension: episode.container_extension
                 });
         }
     }

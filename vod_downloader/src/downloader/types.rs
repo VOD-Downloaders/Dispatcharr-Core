@@ -9,6 +9,7 @@ pub struct Episode
     pub uuid: String,
     pub episode_number: u32,
     pub title: String,
+    pub container_extension: String
 }
 
 #[derive(Debug, Clone)]

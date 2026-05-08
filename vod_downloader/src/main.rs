@@ -1,4 +1,5 @@
 use std::process::ExitCode;
+use std::fs::OpenOptions;
 
 mod cli;
 mod downloader;
@@ -17,13 +18,35 @@ fn main() -> ExitCode {
     let episodes_m3u_id = downloader::retrieve_episodes(&options);
 
     let Ok((episodes, m3u_id)) = episodes_m3u_id else {
-        eprintln!("Failed to retrieve episodes for series with id: ''. \n\tError: {:?}", episodes_m3u_id.unwrap_err());
+        eprintln!("Failed to retrieve episodes for series with id: '{}'. \n\tError: {:?}", options.series_id, episodes_m3u_id.unwrap_err());
         return ExitCode::FAILURE;
     };
 
     println!("Episodes: {:?}", episodes);
-    
-    downloader::download_episode(&options, episodes.get(&1).unwrap().episodes.get(0).unwrap(), m3u_id, true);
 
-    ExitCode::FAILURE
+    println!("Opening log file, {}.", options.log_file.display());
+
+    let log_file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(options.log_file.as_path());
+
+    let Ok(mut log_file) = log_file else {
+        eprintln!("Failed to open log file with error: \n\t{:?}", log_file.unwrap_err());
+        return ExitCode::FAILURE;
+    };
+
+    for (season_num, season) in episodes
+    {
+        for episode in season.episodes
+        {
+            let result = downloader::download_episode(&options, &episode, m3u_id, &mut log_file);
+
+            if let Err(error) = result {
+                eprintln!("Failed to download Episode {} of season {} with error: {:?}", episode.episode_number, season_num, error);
+            }
+        }
+    }
+
+    ExitCode::SUCCESS
 }
