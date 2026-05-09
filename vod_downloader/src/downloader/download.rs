@@ -1,5 +1,7 @@
 use std::fmt;
 use std::fs::File;
+use std::path::Path;
+use std::path::PathBuf;
 use reqwest::blocking::Client;
 
 use super::types::*;
@@ -13,8 +15,8 @@ pub enum DownloadError
 {
     StartDownloadFailed{ title: String, error_type: String },
     DownloadFailed{ title: String, exit_code: i32 },
-    FailedToCreateFile{ title: String, file: String,  error_type: String },
-    FailedToCopyContentsToFile{ title: String, file: String,  error_type: String }
+    FailedToCreateFile{ title: String, file: PathBuf, error_type: String },
+    FailedToCopyContentsToFile{ title: String, file: PathBuf, error_type: String }
 }
 
 impl fmt::Display for DownloadError
@@ -25,8 +27,8 @@ impl fmt::Display for DownloadError
         {
             DownloadError::StartDownloadFailed{ title, error_type } => { write!(formatter, "Starting download: \"{}\" failed with error: {}.", title, error_type) },
             DownloadError::DownloadFailed{ title, exit_code } => { write!(formatter, "Download: \"{}\" exited with exit code: {} and subsequently failed.", title, exit_code) },
-            DownloadError::FailedToCreateFile{ title, file, error_type } => { write!(formatter, "Download: \"{}\" failed, because of being unable to create file \"{}\" due to error: {}.", title, file, error_type) },
-            DownloadError::FailedToCopyContentsToFile{ title, file, error_type } => { write!(formatter, "Download: \"{}\" failed, because of being unable to copy HTTP response contents to file \"{}\" with errorcode: {}.", title, file, error_type) },
+            DownloadError::FailedToCreateFile{ title, file, error_type } => { write!(formatter, "Download: \"{}\" failed, because of being unable to create file \"{}\" due to error: {}.", title, file.display(), error_type) },
+            DownloadError::FailedToCopyContentsToFile{ title, file, error_type } => { write!(formatter, "Download: \"{}\" failed, because of being unable to copy HTTP response contents to file \"{}\" with errorcode: {}.", title, file.display(), error_type) },
         }
     }   
 }
@@ -37,7 +39,8 @@ impl fmt::Display for DownloadError
 pub fn download_episode(options: &DownloadOptions, episode: &Episode, m3u_id: M3UID) -> Result<(), DownloadError>
 {
     let url = format!("{}/proxy/vod/episode/{}?m3u_account_id={}", options.url, episode.uuid, m3u_id);
-    let output_file = format!("{}.{}", episode.title.chars().filter(|c| !c.is_whitespace()).collect::<String>(), episode.container_extension);
+    let file_name = format!("{}.{}", episode.title.chars().filter(|c| !c.is_whitespace()).collect::<String>(), episode.container_extension);
+    let output_file: PathBuf = options.output_folder.join(PathBuf::from(file_name));
 
     let mut last_error: DownloadError = DownloadError::StartDownloadFailed { title: "".to_string(), error_type: "".to_string() }; // Must be initialized
     for attempt in 1..=options.max_reties 
@@ -56,7 +59,7 @@ pub fn download_episode(options: &DownloadOptions, episode: &Episode, m3u_id: M3
     Err(last_error)
 }
 
-fn download_attempt(url: &str, output_file: &str, debug_title: &str) -> Result<(), DownloadError>
+fn download_attempt(url: &str, output_file: &Path, debug_title: &str) -> Result<(), DownloadError>
 {
     let client = Client::builder()
         .redirect(reqwest::redirect::Policy::limited(10))
@@ -73,10 +76,10 @@ fn download_attempt(url: &str, output_file: &str, debug_title: &str) -> Result<(
     }
 
     let mut file = File::create(output_file)
-        .map_err(|e| DownloadError::FailedToCreateFile { title: debug_title.to_string(), file: output_file.to_string(), error_type: e.to_string() })?;
+        .map_err(|e| DownloadError::FailedToCreateFile { title: debug_title.to_string(), file: output_file.to_path_buf(), error_type: e.to_string() })?;
 
     response.copy_to(&mut file)
-        .map_err(|e| DownloadError::FailedToCopyContentsToFile { title: debug_title.to_string(), file: output_file.to_string(), error_type: e.to_string() })?;
+        .map_err(|e| DownloadError::FailedToCopyContentsToFile { title: debug_title.to_string(), file: output_file.to_path_buf(), error_type: e.to_string() })?;
 
     Ok(())
 }
