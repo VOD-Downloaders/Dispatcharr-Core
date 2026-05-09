@@ -1,7 +1,6 @@
 use std::fmt;
-// use std::io::Read;
-use std::process::Stdio;
-use std::process::Command;
+use std::fs::File;
+use reqwest::blocking::Client;
 
 use super::types::*;
 use super::super::cli::DownloadOptions;
@@ -12,9 +11,10 @@ use super::super::cli::DownloadOptions;
 #[derive(Debug, Clone)]
 pub enum DownloadError
 {
-    NoFFmpeg,
     StartDownloadFailed{ title: String, error_type: String },
     DownloadFailed{ title: String, exit_code: i32 },
+    FailedToCreateFile{ title: String, file: String,  error_type: String },
+    FailedToCopyContentsToFile{ title: String, file: String,  error_type: String }
 }
 
 impl fmt::Display for DownloadError
@@ -23,9 +23,10 @@ impl fmt::Display for DownloadError
     {
         match self
         {
-            DownloadError::NoFFmpeg => { write!(formatter, "Failed to find `ffmpeg` in $PATH, please install it.") },
             DownloadError::StartDownloadFailed{ title, error_type } => { write!(formatter, "Starting download: \"{}\" failed with error: {}.", title, error_type) },
             DownloadError::DownloadFailed{ title, exit_code } => { write!(formatter, "Download: \"{}\" exited with exit code: {} and subsequently failed.", title, exit_code) },
+            DownloadError::FailedToCreateFile{ title, file, error_type } => { write!(formatter, "Download: \"{}\" failed, because of being unable to create file \"{}\" due to error: {}.", title, file, error_type) },
+            DownloadError::FailedToCopyContentsToFile{ title, file, error_type } => { write!(formatter, "Download: \"{}\" failed, because of being unable to copy HTTP response contents to file \"{}\" with errorcode: {}.", title, file, error_type) },
         }
     }   
 }
@@ -35,25 +36,13 @@ impl fmt::Display for DownloadError
 /////////////////////////////////////////////////////
 pub fn download_episode(options: &DownloadOptions, episode: &Episode, m3u_id: M3UID) -> Result<(), DownloadError>
 {
-    let which_ffmpeg_status = Command::new("which")
-        .arg("ffmpeg")
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status();
-    
-    if which_ffmpeg_status.is_err() || !which_ffmpeg_status.unwrap().success() {
-        return Err(DownloadError::NoFFmpeg);
-    }
-
-    info!("Starting download for episode: \"{}\".", episode.title);
-
     let url = format!("{}/proxy/vod/episode/{}?m3u_account_id={}", options.url, episode.uuid, m3u_id);
     let output_file = format!("{}.{}", episode.title.chars().filter(|c| !c.is_whitespace()).collect::<String>(), episode.container_extension);
 
-    let mut last_error: DownloadError = DownloadError::NoFFmpeg; // Must be initialized
+    let mut last_error: DownloadError = DownloadError::StartDownloadFailed { title: "".to_string(), error_type: "".to_string() }; // Must be initialized
     for attempt in 1..=options.max_reties 
     {
-        match run_ffmpeg_attempt(&url, &output_file, episode.title.as_str()) 
+        match download_attempt(&url, &output_file, episode.title.as_str()) 
         {
             Ok(()) => return Ok(()),
             Err(e) => 
@@ -67,29 +56,27 @@ pub fn download_episode(options: &DownloadOptions, episode: &Episode, m3u_id: M3
     Err(last_error)
 }
 
-fn run_ffmpeg_attempt(url: &str, output_file: &str, debug_title: &str) -> Result<(), DownloadError>
+fn download_attempt(url: &str, output_file: &str, debug_title: &str) -> Result<(), DownloadError>
 {
-    let mut child = Command::new("ffmpeg")
-        .arg("-y")
-        .arg("-i")
-        .arg(url)
-        .arg("-c")
-        .arg("copy")
-        .arg("-bsf:a")
-        .arg("aac_adtstoasc")
-        .arg(output_file)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|e| { return DownloadError::StartDownloadFailed{ title: debug_title.to_string(), error_type: e.kind().to_string() }; })?;
+    let client = Client::builder()
+        .redirect(reqwest::redirect::Policy::limited(10))
+        .build()
+        .map_err(|e| DownloadError::StartDownloadFailed { title: debug_title.to_string(), error_type: e.to_string() })?;
 
-    let status = child
-        .wait()
-        .map_err(|e| { return DownloadError::StartDownloadFailed{ title: debug_title.to_string(), error_type: e.kind().to_string() }; })?;
+    let mut response = client
+        .get(url)
+        .send()
+        .map_err(|e| DownloadError::StartDownloadFailed { title: debug_title.to_string(), error_type: e.to_string() })?;
 
-    if !status.success() {
-        return Err(DownloadError::DownloadFailed{ title: debug_title.to_string(), exit_code: status.code().unwrap_or(-1) });
+    if !response.status().is_success() {
+        return Err(DownloadError::DownloadFailed { title: debug_title.to_string(), exit_code: response.status().as_u16() as i32 });
     }
+
+    let mut file = File::create(output_file)
+        .map_err(|e| DownloadError::FailedToCreateFile { title: debug_title.to_string(), file: output_file.to_string(), error_type: e.to_string() })?;
+
+    response.copy_to(&mut file)
+        .map_err(|e| DownloadError::FailedToCopyContentsToFile { title: debug_title.to_string(), file: output_file.to_string(), error_type: e.to_string() })?;
 
     Ok(())
 }

@@ -1,4 +1,5 @@
 use std::process::ExitCode;
+use chrono;
 
 #[macro_use]
 mod logging;
@@ -61,10 +62,24 @@ fn main() -> ExitCode {
     {
         for episode in season.episodes
         {
+            info!("Starting download for episode: \"{}\".", episode.title);
+
+            let begin = chrono::Local::now();
+
             let result = downloader::download_episode(&options, &episode, m3u_id);
 
             if let Err(error) = result {
                 error!("{}", error);
+            }
+            else {
+                let end = chrono::Local::now();
+                let time = end - begin;
+
+                let hours = time.num_hours();
+                let minutes = (time - chrono::TimeDelta::hours(hours)).num_minutes();
+                let seconds = (time - chrono::TimeDelta::minutes(minutes)).num_seconds();
+
+                info!("Download for \"{}\" finished in {} hours, {} minutes and {} seconds.", episode.title, hours, minutes, seconds);
             }
         }
     }

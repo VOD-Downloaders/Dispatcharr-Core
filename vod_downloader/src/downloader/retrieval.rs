@@ -25,7 +25,7 @@ struct M3uAccountResponse
 struct EpisodeResponse 
 {
     uuid: String,
-    episode_number: u32,
+    // episode_number: u32,
     season_number: u32, // Full string like "EN - Stranger Things - S01E01 - The Vanishing of Will Byers"
     title: String, // "mp4" or "mkv" — varies per episode, must be respected
     container_extension: String,
@@ -98,7 +98,7 @@ pub fn retrieve_episodes(options: &DownloadOptions) -> Result<(Seasons, M3UID), 
                 })
                 .episodes.push(Episode { 
                     uuid: episode.uuid, 
-                    episode_number: episode.episode_number, 
+                    // episode_number: episode.episode_number, 
                     title: episode.title,
                     container_extension: episode.container_extension
                 });
