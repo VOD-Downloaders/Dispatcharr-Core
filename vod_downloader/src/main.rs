@@ -1,5 +1,4 @@
 use std::process::ExitCode;
-use std::fs::OpenOptions;
 
 #[macro_use]
 mod logging;

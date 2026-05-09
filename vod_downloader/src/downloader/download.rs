@@ -1,9 +1,7 @@
 use std::fmt;
-use std::io::Read;
-use std::io::Write;
+// use std::io::Read;
 use std::process::Stdio;
 use std::process::Command;
-use std::fs::File;
 
 use super::types::*;
 use super::super::cli::DownloadOptions;
@@ -35,7 +33,7 @@ impl fmt::Display for DownloadError
 /////////////////////////////////////////////////////
 // Downloader
 /////////////////////////////////////////////////////
-pub fn download_episode(options: &DownloadOptions, episode: &Episode, m3u_id: M3UID) -> Result<String, DownloadError>
+pub fn download_episode(options: &DownloadOptions, episode: &Episode, m3u_id: M3UID) -> Result<(), DownloadError>
 {
     let which_ffmpeg_status = Command::new("which")
         .arg("ffmpeg")
@@ -57,7 +55,7 @@ pub fn download_episode(options: &DownloadOptions, episode: &Episode, m3u_id: M3
     {
         match run_ffmpeg_attempt(&url, &output_file, episode.title.as_str()) 
         {
-            Ok(output) => return Ok(output),
+            Ok(()) => return Ok(()),
             Err(e) => 
             {
                 warning!("[Attempt {}/{}] Failed with error: {}.", attempt, options.max_reties, e);
@@ -69,7 +67,7 @@ pub fn download_episode(options: &DownloadOptions, episode: &Episode, m3u_id: M3
     Err(last_error)
 }
 
-fn run_ffmpeg_attempt(url: &str, output_file: &str, debug_title: &str) -> Result<String, DownloadError>
+fn run_ffmpeg_attempt(url: &str, output_file: &str, debug_title: &str) -> Result<(), DownloadError>
 {
     let mut child = Command::new("ffmpeg")
         .arg("-y")
@@ -93,11 +91,5 @@ fn run_ffmpeg_attempt(url: &str, output_file: &str, debug_title: &str) -> Result
         return Err(DownloadError::DownloadFailed{ title: debug_title.to_string(), exit_code: status.code().unwrap_or(-1) });
     }
 
-    // let mut output: String = String::new();
-    // child.stdout.unwrap().read_to_string(&mut output); // TODO: Remove unsafe .unwrap()
-// 
-    // log_file.write_all(output.as_bytes()); // TODO: result
-
-    // Ok(output)
-    Ok("".to_string())
+    Ok(())
 }
