@@ -1,3 +1,4 @@
+use std::fmt;
 use std::path::PathBuf;
 
 use super::arguments::CliOption;
@@ -8,16 +9,37 @@ use super::arguments::CliOption;
 #[derive(Debug, Clone)]
 pub enum CliError
 {
-    UnknownFlag(String),
-    UnknownOption(String),
+    UnknownFlag{ flag: String },
+    UnknownOption{ option: String },
 
     NoUrl,
-    InvalidUrl(String),
+    InvalidUrl{ message: String },
     NoSeriesId,
-    InvalidSeriesId(String),
+    InvalidSeriesId,
     NoApiKey,
-    InvalidPath(String),
-    InvalidRetryCount(String),
+    InvalidOutputPath{ message: String },
+    InvalidLogFile{ message: String },
+    InvalidRetryCount{ message: String },
+}
+
+impl fmt::Display for CliError
+{
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result 
+    {
+        match self
+        {
+            CliError::UnknownFlag{ flag } => { write!(formatter, "Unknown flag: '-{}'.", flag) },
+            CliError::UnknownOption{ option } => { write!(formatter, "Unknown option: '--{}=...'.", option) },
+            CliError::NoUrl => { write!(formatter, "No url passed in. (use --url=...).") },
+            CliError::InvalidUrl{ message} => { write!(formatter, "Url passed in is invalid, {}.", message) },
+            CliError::NoSeriesId => { write!(formatter, "No series id passed in. (use --series=...).") },
+            CliError::InvalidSeriesId => { write!(formatter, "Series id passed in is not a valid Dispatcharr ID.") },
+            CliError::NoApiKey => { write!(formatter, "No api key passed in. (use --api-key=...).") },
+            CliError::InvalidOutputPath{ message } => { write!(formatter, "Invalid output path passed in, {}.", message) },
+            CliError::InvalidLogFile{ message } => { write!(formatter, "Invalid log file path passed in, {}.", message) },
+            CliError::InvalidRetryCount{ message } => { write!(formatter, "Invalid retry count passed in, {}.", message) },
+        }
+    }   
 }
 
 /////////////////////////////////////////////////////
@@ -93,7 +115,7 @@ pub fn parse_cli_options(cli_options: Vec<CliOption>) -> Result<DownloadOptions,
                     "v" => { options.verbose = true; },
                     "verbose" => { options.verbose = true; },
 
-                    _ => { return Err(CliError::UnknownFlag(format!("Unknown flag: '-{}'", value))); }
+                    _ => { return Err(CliError::UnknownFlag{ flag: value.to_string() }); }
                 }
             },
             CliOption::Option(key, value) =>
@@ -130,7 +152,7 @@ pub fn parse_cli_options(cli_options: Vec<CliOption>) -> Result<DownloadOptions,
                     "max-retries" => { options.max_reties = parse_max_retries(value)?; },
                     "max_retries" => { options.max_reties = parse_max_retries(value)?; },
                     
-                    _ => { return Err(CliError::UnknownOption(format!("Unknown option: '--{}=...'", key))); }
+                    _ => { return Err(CliError::UnknownOption{ option: key.to_string() }); }
                 }
             }
         }
@@ -141,23 +163,23 @@ pub fn parse_cli_options(cli_options: Vec<CliOption>) -> Result<DownloadOptions,
     if options.series_id == 0 { return Err(CliError::NoSeriesId); }
     if options.url == "" { return Err(CliError::NoUrl); }
     if options.api_key == "" { return Err(CliError::NoApiKey); }
-    if options.max_reties == 0 { return Err(CliError::InvalidRetryCount("Retry count must be greater than zero.".to_string())); }
+    if options.max_reties == 0 { return Err(CliError::InvalidRetryCount{ message: "retry count must be greater than zero".to_string() }); }
 
     Ok(options)
 }
 
 fn parse_series_id(series_id: &str) -> Result<u32, CliError>
 {
-    Ok(series_id.parse::<u32>().map_err(|_error| { return CliError::InvalidSeriesId(format!("'{}' is not an integer.", series_id))})?)
+    Ok(series_id.parse::<u32>().map_err(|_error| { return CliError::InvalidSeriesId; })?)
 }
 
 fn parse_url(url: &str) -> Result<String, CliError>
 {
     if !url.starts_with("http://") && !url.starts_with("https://") {
-        return Err(CliError::InvalidUrl(format!("The URL passed in doens't start with http or https, passed in: '{}'.", url)));
+        return Err(CliError::InvalidUrl{ message: "the URL passed in doens't start with http or https".to_string() });
     }
     if url.split('.').count() < 2 {
-        return Err(CliError::InvalidUrl(format!("Invalid url format: '{}'.", url)));
+        return Err(CliError::InvalidUrl{ message: "not enough .'s to form a valid URL".to_string() });
     }
 
     if url.ends_with('/')
@@ -181,7 +203,7 @@ fn parse_output_folder(output_folder: &str) -> Result<PathBuf, CliError>
 
     if !path.is_dir() 
     {
-        Err(CliError::InvalidPath("Expected a folder as an output destination.".to_string()))
+        Err(CliError::InvalidOutputPath{ message: "expected a folder as an output destination".to_string() })
     }
     else 
     {
@@ -195,7 +217,7 @@ fn parse_log_file(log_file: &str) -> Result<PathBuf, CliError>
 
     if !path.is_file() 
     {
-        Err(CliError::InvalidPath("Expected a file as a log destination.".to_string()))
+        Err(CliError::InvalidLogFile{ message: "expected a file as a log destination".to_string() })
     }
     else 
     {
@@ -205,5 +227,5 @@ fn parse_log_file(log_file: &str) -> Result<PathBuf, CliError>
 
 fn parse_max_retries(max_retries: &str) -> Result<u32, CliError>
 {
-    Ok(max_retries.parse::<u32>().map_err(|_error| { return CliError::InvalidRetryCount(format!("'{}' is not an integer.", max_retries))})?)
+    Ok(max_retries.parse::<u32>().map_err(|_error| { return CliError::InvalidRetryCount{ message: format!("'{}' is not an integer.", max_retries) } })?)
 }

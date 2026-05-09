@@ -8,19 +8,12 @@ mod downloader;
 
 fn main() -> ExitCode {
     logging::add_sink(Box::new(logging::ConsoleSink::new(Some(logging::LogLevel::Trace))));
-    logging::add_sink(Box::new(logging::ConsoleSink::new(Some(logging::LogLevel::Info))));
-    logging::add_sink(Box::new(logging::ConsoleSink::new(Some(logging::LogLevel::Info))));
-
-    trace!("TRACE");
-    info!("INFO");
-
-    return ExitCode::FAILURE;
 
     let arguments = cli::parse_cli_arguments(std::env::args().collect());
     let options = cli::parse_cli_options(arguments);
 
     let Ok(options) = options else {
-        eprintln!("Failed to parse cli arguments with error: \n\t{:?}", options.unwrap_err());
+        error!("{}", options.unwrap_err());
         return ExitCode::FAILURE;
     };
 

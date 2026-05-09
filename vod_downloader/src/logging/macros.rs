@@ -4,7 +4,6 @@
 macro_rules! log {
     ($level:expr, $fmt:literal $(, $arg:expr)*) => {{
         use colored::Colorize;
-        use crate::logging::LogLevel;
         use crate::logging::log_to_all_sinks;
 
         let now = chrono::Local::now().format("%H:%M:%S");
@@ -20,9 +19,9 @@ macro_rules! log {
 }
 
 #[macro_export] macro_rules! trace { ($fmt:literal $(, $arg:expr)*) => {{ use crate::logging::LogLevel; log!(LogLevel::Trace, $fmt $(, $arg)*) }}; }
-#[macro_export] macro_rules! info  { ($fmt:literal $(, $arg:expr)*) => {{ use crate::logging::LogLevel; log!(logging::LogLevel::Info,  $fmt $(, $arg)*) }}; }
-#[macro_export] macro_rules! warning  { ($fmt:literal $(, $arg:expr)*) => {{ use crate::logging::LogLevel; log!(logging::LogLevel::Warn,  $fmt $(, $arg)*) }}; }
-#[macro_export] macro_rules! error { ($fmt:literal $(, $arg:expr)*) => {{ use crate::logging::LogLevel; log!(logging::LogLevel::Error, $fmt $(, $arg)*) }}; }
+#[macro_export] macro_rules! info  { ($fmt:literal $(, $arg:expr)*) => {{ use crate::logging::LogLevel; log!(LogLevel::Info,  $fmt $(, $arg)*) }}; }
+#[macro_export] macro_rules! warning  { ($fmt:literal $(, $arg:expr)*) => {{ use crate::logging::LogLevel; log!(LogLevel::Warn,  $fmt $(, $arg)*) }}; }
+#[macro_export] macro_rules! error { ($fmt:literal $(, $arg:expr)*) => {{ use crate::logging::LogLevel; log!(LogLevel::Error, $fmt $(, $arg)*) }}; }
 
 pub use trace;
 pub use info;
