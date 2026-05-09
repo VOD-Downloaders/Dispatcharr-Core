@@ -17,6 +17,7 @@ pub enum CliOption
 // Types it can handle
 // Value: value
 // Flag: -flag
+// Flag: --flag
 // Option: --option=value
 pub fn parse_cli_arguments(args: Vec<String>) -> Vec<CliOption> 
 {
