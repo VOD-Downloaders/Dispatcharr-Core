@@ -39,7 +39,7 @@ fn main() -> ExitCode {
             let filesink = logging::FileSink::new(path.as_path(), Some(log_level));
 
             let Ok(filesink) = filesink else {
-                error!("{}", filesink.unwrap_err().kind());
+                error!("Failed to open log file '{}' with error: {}.", path.display(), filesink.unwrap_err().kind());
                 return ExitCode::FAILURE;
             };
 

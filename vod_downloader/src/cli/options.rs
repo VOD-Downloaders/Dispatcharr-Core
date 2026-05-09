@@ -201,7 +201,7 @@ fn parse_output_folder(output_folder: &str) -> Result<PathBuf, CliError>
 {
     let path = output_folder.parse::<PathBuf>().unwrap();
 
-    if !output_folder.ends_with(std::path::MAIN_SEPARATOR) && output_folder != ".".to_string()
+    if !path.is_dir()
     {
         Err(CliError::InvalidOutputPath{ message: "expected a folder as an output destination".to_string() })
     }
