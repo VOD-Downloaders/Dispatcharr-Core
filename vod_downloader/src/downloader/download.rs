@@ -78,8 +78,8 @@ fn run_ffmpeg_attempt(url: &str, output_file: &str, debug_title: &str) -> Result
         .arg("-bsf:a")
         .arg("aac_adtstoasc")
         .arg(output_file)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .spawn()
         .map_err(|e| { return DownloadError::StartDownloadFailed{ title: debug_title.to_string(), error_type: e.kind().to_string() }; })?;
 
