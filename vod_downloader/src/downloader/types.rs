@@ -15,10 +15,9 @@ pub struct Episode
 #[derive(Debug, Clone)]
 pub struct Season
 {
-    pub season: u32,
     pub episodes: Vec<Episode>
 }
 
 // Note: Indexed by 
-pub type Episodes = HashMap<u32, Season>;
+pub type Seasons = HashMap<u32, Season>;
 pub type M3UID = u32;

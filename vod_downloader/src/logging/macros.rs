@@ -22,8 +22,3 @@ macro_rules! log {
 #[macro_export] macro_rules! info  { ($fmt:literal $(, $arg:expr)*) => {{ use crate::logging::LogLevel; log!(LogLevel::Info,  $fmt $(, $arg)*) }}; }
 #[macro_export] macro_rules! warning  { ($fmt:literal $(, $arg:expr)*) => {{ use crate::logging::LogLevel; log!(LogLevel::Warn,  $fmt $(, $arg)*) }}; }
 #[macro_export] macro_rules! error { ($fmt:literal $(, $arg:expr)*) => {{ use crate::logging::LogLevel; log!(LogLevel::Error, $fmt $(, $arg)*) }}; }
-
-pub use trace;
-pub use info;
-pub use warning;
-pub use error;

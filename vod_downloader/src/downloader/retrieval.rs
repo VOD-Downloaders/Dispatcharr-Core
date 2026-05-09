@@ -1,3 +1,4 @@
+use std::fmt;
 use serde::Deserialize;
 use std::collections::HashMap;
 
@@ -38,15 +39,28 @@ pub enum RetrieveError
 {
     FailedToSetupHTTP,
     GETProviderInfoFailed,
-    ProviderInfoReturnedErrorStatus(reqwest::StatusCode),
+    ProviderInfoReturnedErrorStatus { status_code: reqwest::StatusCode },
     FailedToParseJSON,
-    Other(String)
+}
+
+impl fmt::Display for RetrieveError
+{
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result 
+    {
+        match self
+        {
+            RetrieveError::FailedToSetupHTTP => { write!(formatter, "Failed to set up HTTP client.") },
+            RetrieveError::GETProviderInfoFailed => { write!(formatter, "Failed to retrieve episodes from Dispatcharr.") },
+            RetrieveError::ProviderInfoReturnedErrorStatus{ status_code } => { write!(formatter, "Failed to retrieve episodes from Dispatcharr with error code: {}.", status_code.as_u16()) },
+            RetrieveError::FailedToParseJSON => { write!(formatter, "Failed to parse episode response JSON.") },
+        }
+    }   
 }
 
 /////////////////////////////////////////////////////
 // Retrieval
 /////////////////////////////////////////////////////
-pub fn retrieve_episodes(options: &DownloadOptions) -> Result<(Episodes, M3UID), RetrieveError>
+pub fn retrieve_episodes(options: &DownloadOptions) -> Result<(Seasons, M3UID), RetrieveError>
 {
     // HTTP side
     let client = reqwest::blocking::Client::builder()
@@ -65,22 +79,21 @@ pub fn retrieve_episodes(options: &DownloadOptions) -> Result<(Episodes, M3UID),
     let status = response.status();
 
     let info = response.error_for_status()
-        .map_err(|_error| { return RetrieveError::ProviderInfoReturnedErrorStatus(status); })?;
+        .map_err(|_error| { return RetrieveError::ProviderInfoReturnedErrorStatus{ status_code: status }; })?;
 
     let json = info.json::<ProviderInfoResponse>()
         .map_err(|_error| { return RetrieveError::FailedToParseJSON; })?;
 
     // Conversion side
     let m3u_account_id = json.m3u_account.id;
-    let mut episodes: Episodes = Episodes::new();
+    let mut seasons: Seasons = Seasons::new();
     
     for (_season_key, season_episodes) in json.episodes 
     {
         for episode in season_episodes 
         {
-            episodes.entry(episode.season_number)
+            seasons.entry(episode.season_number)
                 .or_insert(Season { 
-                    season: episode.season_number,
                     episodes: Vec::new()
                 })
                 .episodes.push(Episode { 
@@ -92,7 +105,5 @@ pub fn retrieve_episodes(options: &DownloadOptions) -> Result<(Episodes, M3UID),
         }
     }
 
-    //episodes.sort_by_key(|e| (e.season, e.episode));
-
-    Ok((episodes, m3u_account_id))
+    Ok((seasons, m3u_account_id))
 }
