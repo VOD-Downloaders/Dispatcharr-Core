@@ -23,7 +23,7 @@ fn main() -> ExitCode {
     
     trace!("Options: {:?}", options);
     
-    // Set logging based on download options
+    // Set logging based on download options/cli parameters
     {
         logging::clear_sinks();
 
@@ -58,11 +58,15 @@ fn main() -> ExitCode {
     trace!("Episodes: {:?}", episodes);
 
     // Download all episodes
+    let total: u32 = episodes.values().map(|s| s.episodes.len()).sum::<usize>() as u32;
+    let mut fails: u32 = 0;
+    let mut succeeded: u32 = 0;
+
     for (_season_num, season) in episodes
     {
         for episode in season.episodes
         {
-            info!("Starting download for episode: \"{}\".", episode.title);
+            info!("[{}/{}] Starting download for episode: \"{}\".", succeeded + fails + 1, total, episode.title);
 
             let begin = chrono::Local::now();
 
@@ -70,6 +74,7 @@ fn main() -> ExitCode {
 
             if let Err(error) = result {
                 error!("{}", error);
+                fails += 1;
             }
             else {
                 let end = chrono::Local::now();
@@ -80,9 +85,20 @@ fn main() -> ExitCode {
                 let seconds = (time - chrono::TimeDelta::minutes(minutes)).num_seconds();
 
                 info!("Download for \"{}\" finished in {} hours, {} minutes and {} seconds.", episode.title, hours, minutes, seconds);
+                succeeded += 1;
             }
         }
     }
 
-    ExitCode::SUCCESS
+    // Final exit message
+    if total == succeeded {
+        info!("Downloads for all {} episodes succeeded!", total);
+        ExitCode::SUCCESS
+    } else if succeeded > 0 {
+        warning!("Only {} out of {} episodes were downloaded.", succeeded, total);
+        ExitCode::FAILURE
+    } else {
+        error!("All downloads failed to complete...");
+        ExitCode::FAILURE
+    }
 }
