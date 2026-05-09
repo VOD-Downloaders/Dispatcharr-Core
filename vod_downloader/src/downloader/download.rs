@@ -35,7 +35,7 @@ impl fmt::Display for DownloadError
 /////////////////////////////////////////////////////
 // Downloader
 /////////////////////////////////////////////////////
-pub fn download_episode(options: &DownloadOptions, episode: &Episode, m3u_id: M3UID, log_file: &mut File) -> Result<String, DownloadError>
+pub fn download_episode(options: &DownloadOptions, episode: &Episode, m3u_id: M3UID) -> Result<String, DownloadError>
 {
     let which_ffmpeg_status = Command::new("which")
         .arg("ffmpeg")
@@ -47,29 +47,20 @@ pub fn download_episode(options: &DownloadOptions, episode: &Episode, m3u_id: M3
         return Err(DownloadError::NoFFmpeg);
     }
 
+    info!("Starting download for episode: \"{}\".", episode.title);
+
     let url = format!("{}/proxy/vod/episode/{}?m3u_account_id={}", options.url, episode.uuid, m3u_id);
     let output_file = format!("{}.{}", episode.title.chars().filter(|c| !c.is_whitespace()).collect::<String>(), episode.container_extension);
 
     let mut last_error: DownloadError = DownloadError::NoFFmpeg; // Must be initialized
     for attempt in 1..=options.max_reties 
     {
-        // Write the attempt header
-        let separator = "=".repeat(80);
-        let header = format!(
-            "\n{sep}\n* {title} — Attempt {attempt}/{max}\n{sep}\n",
-            sep = separator,
-            title = episode.title,
-            attempt = attempt,
-            max = options.max_reties,
-        );
-        let _ = log_file.write_all(header.as_bytes());
-
-        match run_ffmpeg_attempt(&url, &output_file, log_file, episode.title.as_str()) 
+        match run_ffmpeg_attempt(&url, &output_file, episode.title.as_str()) 
         {
             Ok(output) => return Ok(output),
             Err(e) => 
             {
-                eprintln!("[Attempt {}/{}] Failed: {:?}", attempt, options.max_reties, e);
+                warning!("[Attempt {}/{}] Failed with error: {}.", attempt, options.max_reties, e);
                 last_error = e;
             }
         }
@@ -78,7 +69,7 @@ pub fn download_episode(options: &DownloadOptions, episode: &Episode, m3u_id: M3
     Err(last_error)
 }
 
-fn run_ffmpeg_attempt(url: &str, output_file: &str, log_file: &mut File, debug_title: &str) -> Result<String, DownloadError>
+fn run_ffmpeg_attempt(url: &str, output_file: &str, debug_title: &str) -> Result<String, DownloadError>
 {
     let mut child = Command::new("ffmpeg")
         .arg("-y")
@@ -102,10 +93,11 @@ fn run_ffmpeg_attempt(url: &str, output_file: &str, log_file: &mut File, debug_t
         return Err(DownloadError::DownloadFailed{ title: debug_title.to_string(), exit_code: status.code().unwrap_or(-1) });
     }
 
-    let mut output: String = String::new();
-    child.stdout.unwrap().read_to_string(&mut output); // TODO: Remove unsafe .unwrap()
+    // let mut output: String = String::new();
+    // child.stdout.unwrap().read_to_string(&mut output); // TODO: Remove unsafe .unwrap()
+// 
+    // log_file.write_all(output.as_bytes()); // TODO: result
 
-    log_file.write_all(output.as_bytes()); // TODO: result
-
-    Ok(output)
+    // Ok(output)
+    Ok("".to_string())
 }

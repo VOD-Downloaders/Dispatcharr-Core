@@ -20,6 +20,7 @@ pub trait Sink: Send
     fn log(&mut self, log_level: LogLevel, message: &str);
 }
 
+#[derive(Debug)]
 pub struct ConsoleSink
 {
     pub minimum_level: LogLevel,
@@ -46,6 +47,7 @@ impl Sink for ConsoleSink
     }
 }
 
+#[derive(Debug)]
 pub struct FileSink
 {
     pub output_file: File,
@@ -87,6 +89,14 @@ pub fn add_sink(sink: Box<dyn Sink>)
     if let Ok(mut sinks) = SINKS.lock()
     {
         sinks.push(sink);
+    }
+}
+
+pub fn clear_sinks()
+{
+    if let Ok(mut sinks) = SINKS.lock()
+    {
+        sinks.clear();
     }
 }
 

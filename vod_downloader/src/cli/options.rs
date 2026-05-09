@@ -52,7 +52,7 @@ pub struct DownloadOptions
     pub series_id: u32,
     pub api_key: String,
     pub output_folder: PathBuf,
-    pub log_file: PathBuf,
+    pub log_file: Option<PathBuf>,
     pub max_reties: u32,
     // TODO: Add more specifiers about what seasons or specific episodes
     
@@ -69,7 +69,7 @@ pub fn parse_cli_options(cli_options: Vec<CliOption>) -> Result<DownloadOptions,
         series_id: 0,
         api_key: String::new(),
         output_folder: PathBuf::from("."),
-        log_file: PathBuf::from("vod_download.log"),
+        log_file: None,
         max_reties: 3,
         verbose: false
     };
@@ -102,8 +102,8 @@ pub fn parse_cli_options(cli_options: Vec<CliOption>) -> Result<DownloadOptions,
                                 "output" => { options.output_folder = parse_output_folder(flag_value)?; },
                                 "outputfolder" => { options.output_folder = parse_output_folder(flag_value)?; },
 
-                                "log" => { options.log_file = parse_output_folder(flag_value)?; },
-                                "logfile" => { options.log_file = parse_output_folder(flag_value)?; },
+                                "log" => { options.log_file = Some(parse_output_folder(flag_value)?); },
+                                "logfile" => { options.log_file = Some(parse_output_folder(flag_value)?); },
                                 _ => { panic!("Internal logic error, a flag was set in top level match statement but not in bottom level."); }
                             }
 
@@ -142,10 +142,10 @@ pub fn parse_cli_options(cli_options: Vec<CliOption>) -> Result<DownloadOptions,
                     "output-folder" => { options.output_folder = parse_output_folder(value)?; },
                     "output_folder" => { options.output_folder = parse_output_folder(value)?; },
 
-                    "log" => { options.log_file = parse_log_file(value)?; },
-                    "logfile" => { options.log_file = parse_log_file(value)?; },
-                    "log-file" => { options.log_file = parse_log_file(value)?; },
-                    "log_file" => { options.log_file = parse_log_file(value)?; },
+                    "log" => { options.log_file = Some(parse_log_file(value)?); },
+                    "logfile" => { options.log_file = Some(parse_log_file(value)?); },
+                    "log-file" => { options.log_file = Some(parse_log_file(value)?); },
+                    "log_file" => { options.log_file = Some(parse_log_file(value)?); },
 
                     "retries" => { options.max_reties = parse_max_retries(value)?; },
                     "maxretries" => { options.max_reties = parse_max_retries(value)?; },
@@ -201,7 +201,7 @@ fn parse_output_folder(output_folder: &str) -> Result<PathBuf, CliError>
 {
     let path = output_folder.parse::<PathBuf>().unwrap();
 
-    if !path.is_dir() 
+    if !output_folder.ends_with(std::path::MAIN_SEPARATOR) && output_folder != ".".to_string()
     {
         Err(CliError::InvalidOutputPath{ message: "expected a folder as an output destination".to_string() })
     }
@@ -215,7 +215,7 @@ fn parse_log_file(log_file: &str) -> Result<PathBuf, CliError>
 {
     let path = log_file.parse::<PathBuf>().unwrap();
 
-    if !path.is_file() 
+    if log_file.ends_with(std::path::MAIN_SEPARATOR)
     {
         Err(CliError::InvalidLogFile{ message: "expected a file as a log destination".to_string() })
     }
