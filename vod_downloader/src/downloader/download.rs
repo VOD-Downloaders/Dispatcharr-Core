@@ -144,6 +144,7 @@ fn download_attempt(url: &str, output_file: &Path, container_extension: &str, ex
     }
 }
 
+// TODO: Fix validation reading the metadata instead of trying the actual length
 fn validate_download(output_file: &Path, container_extension: &str, expected_secs: u64, debug_title: &str) -> Result<(), DownloadError>
 {
     const TOLERANCE: u64 = 2; // 2 seconds
