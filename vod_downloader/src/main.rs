@@ -55,22 +55,55 @@ fn main() -> ExitCode {
 
     let episodes_m3u_id = downloader::retrieve_episodes(&options);
 
-    let Ok((episodes, m3u_id)) = episodes_m3u_id else {
+    let Ok((retrieved_episodes, m3u_id)) = episodes_m3u_id else {
         error!("{}", episodes_m3u_id.unwrap_err());
         return ExitCode::FAILURE;
     };
 
-    trace!("Episodes available: {:?}", episodes);
+    trace!("Episodes available: {:?}", retrieved_episodes);
 
-    // Download all episodes
-    let total: u32 = episodes.values().map(|s| s.episodes.len()).sum::<usize>() as u32;
+    // Setup stats
+    let mut total: u32 = 0;
+    for (season_num, season) in &options.recipe.seasons
+    {
+        if season.episodes.len() == 0 {
+            match retrieved_episodes.get(season_num)
+            {
+                Some(retrieved_season) => {
+                    total += retrieved_season.episodes.len() as u32;
+                },
+                None => {
+                    warning!("Recipe wants season {0}, but no season {0} in HTTP response.", season_num);
+                }
+            }
+        }
+        else { 
+            total += season.episodes.len() as u32; 
+        }
+    }
+
     let mut fails: u32 = 0;
     let mut succeeded: u32 = 0;
 
-    for (_season_num, season) in episodes
+    // Download all episodes
+    for (season_num, season) in retrieved_episodes
     {
+        // Season not requested
+        if !options.recipe.seasons.is_empty() && !options.recipe.seasons.contains_key(&season_num) {
+            continue;
+        }
+
         for episode in season.episodes
         {
+            // Episode not requested
+            if !options.recipe.seasons.is_empty() 
+            {
+                let episodes = &options.recipe.seasons.get(&season_num).unwrap().episodes;
+                if !episodes.is_empty() && !episodes.contains(&episode.episode_number) {
+                    continue;
+                }
+            }
+
             info!("[{}/{}] Starting download for episode: \"{}\".", succeeded + fails + 1, total, episode.title);
 
             let begin = chrono::Local::now();
