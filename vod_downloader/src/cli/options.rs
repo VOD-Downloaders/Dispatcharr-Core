@@ -43,19 +43,30 @@ impl fmt::Display for CliError
 }
 
 /////////////////////////////////////////////////////
-// CompilerOptions
+// DownloadOptions
 /////////////////////////////////////////////////////
+#[derive(Debug, Clone, PartialEq)]
+pub enum OverwriteMode
+{
+    None,
+    Bad,
+    All,
+}
+
 #[derive(Debug, Clone)]
 pub struct DownloadOptions
 {
     pub url: String, // ex. http://192.168.2.2:9191 or https://dispatcharr.example.com
     pub series_id: u32,
     pub api_key: String,
-    pub output_folder: PathBuf,
-    pub log_file: Option<PathBuf>,
-    pub max_reties: u32,
-    // TODO: Add more specifiers about what seasons or specific episodes
     
+    pub output_folder: PathBuf,
+    
+    pub log_file: Option<PathBuf>,
+    
+    // TODO: Recipe
+    pub max_reties: u32,
+    pub overwrite_mode: OverwriteMode,
     pub verbose: bool,
 }
 
@@ -68,9 +79,13 @@ pub fn parse_cli_options(cli_options: Vec<CliOption>) -> Result<DownloadOptions,
         url: String::new(),
         series_id: 0,
         api_key: String::new(),
+
         output_folder: PathBuf::from("."),
+
         log_file: None,
+
         max_reties: 3,
+        overwrite_mode: OverwriteMode::Bad,
         verbose: false
     };
 
@@ -114,6 +129,13 @@ pub fn parse_cli_options(cli_options: Vec<CliOption>) -> Result<DownloadOptions,
 
                     "v" => { options.verbose = true; },
                     "verbose" => { options.verbose = true; },
+                    "d" => { options.verbose = true; },
+
+                    "debug" => { options.verbose = true; },
+
+                    "overwrite-none" => { options.overwrite_mode = OverwriteMode::None; },
+                    "overwrite-bad" => { options.overwrite_mode = OverwriteMode::Bad; },
+                    "overwrite-all" => { options.overwrite_mode = OverwriteMode::All; },
 
                     _ => { return Err(CliError::UnknownFlag{ flag: value.to_string() }); }
                 }

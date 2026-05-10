@@ -7,6 +7,7 @@ use reqwest::blocking::Client;
 use mp4::Mp4Reader;
 
 use super::types::*;
+use super::super::cli::OverwriteMode;
 use super::super::cli::DownloadOptions;
 
 /////////////////////////////////////////////////////
@@ -56,12 +57,46 @@ pub fn download_episode(options: &DownloadOptions, episode: &Episode, m3u_id: M3
     let file_name = format!("{}.{}", episode.title.chars().filter(|c| !c.is_whitespace()).collect::<String>(), episode.container_extension);
     let output_file: PathBuf = options.output_folder.join(PathBuf::from(file_name));
 
+    // Handle overwrites
+    if output_file.exists() 
+    {
+        match options.overwrite_mode
+        {
+            OverwriteMode::None => {
+                info!("Episode \"{}\" already exists on disk, OverwriteMode::None selected, so skipping this episode.", episode.title);
+                return Ok(());
+            },
+            OverwriteMode::Bad => {
+                let validation_result = validate_download(output_file.as_path(), episode.container_extension.as_str(), episode.seconds, episode.title.as_str());
+                match validation_result
+                {
+                    Ok(_) => {
+                        info!("Episode \"{}\" already exists on disk, OverwriteMode::Bad selected, the episode has been fully validated, so skipping this episode.", episode.title);
+                        return Ok(());
+                    }
+                    Err(error) => {
+                        if let DownloadError::ValidationFailed { title: _, expected_secs: _, actual_secs: _ } = error {
+                            warning!("Episode \"{}\" already exists on disk, OverwriteMode::Bad selected, this episode failed validation, so overwriting.", episode.title);
+                        } else {
+                            error!("Episode \"{}\" already exists on disk, OverwriteMode::Bad selected, this episode failed validation with error: \"{}\", so overwriting.", episode.title, error);
+                        }
+                    }
+                }
+
+            },
+            OverwriteMode::All => {
+                info!("Episode \"{}\" already exists on disk, OverwriteMode::All selected, so overwriting...", episode.title);
+            }
+        }
+    }
+
+    // Start attempts
     let mut last_error: DownloadError = DownloadError::StartDownloadFailed { title: "".to_string(), error_type: "".to_string() }; // Must be initialized
     for attempt in 1..=options.max_reties 
     {
         match download_attempt(&url, &output_file, episode.container_extension.as_str(), episode.seconds, episode.title.as_str()) 
         {
-            Ok(()) => return Ok(()),
+            Ok(_) => return Ok(()),
             Err(e) => 
             {
                 warning!("[Attempt {}/{}] Failed with error: {}.", attempt, options.max_reties, e);

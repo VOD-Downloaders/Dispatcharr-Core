@@ -4,6 +4,7 @@ use chrono;
 #[macro_use]
 mod logging;
 mod cli;
+mod recipe;
 mod downloader;
 
 fn main() -> ExitCode {
@@ -95,7 +96,7 @@ fn main() -> ExitCode {
         info!("Downloads for all {} episodes succeeded!", total);
         ExitCode::SUCCESS
     } else if succeeded > 0 {
-        warning!("Only {} out of {} episodes were downloaded.", succeeded, total);
+        warning!("Only {} out of {} episodes were successfully downloaded.", succeeded, total);
         ExitCode::FAILURE
     } else {
         error!("All downloads failed to complete...");
