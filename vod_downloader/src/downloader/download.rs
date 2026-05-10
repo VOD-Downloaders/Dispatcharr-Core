@@ -1,8 +1,10 @@
 use std::fmt;
 use std::fs::File;
+use std::io::BufReader;
 use std::path::Path;
 use std::path::PathBuf;
 use reqwest::blocking::Client;
+use mp4::Mp4Reader;
 
 use super::types::*;
 use super::super::cli::DownloadOptions;
@@ -16,7 +18,11 @@ pub enum DownloadError
     StartDownloadFailed{ title: String, error_type: String },
     DownloadFailed{ title: String, exit_code: i32 },
     FailedToCreateFile{ title: String, file: PathBuf, error_type: String },
-    FailedToCopyContentsToFile{ title: String, file: PathBuf, error_type: String }
+    FailedToCopyContentsToFile{ title: String, file: PathBuf, error_type: String },
+    FailedToReadFile{ title: String, error_type: String },
+    FailedToReadFileMetadata{ title: String, error_type: String },
+    FailedToReadMP4{ title: String, error_type: String },
+    ValidationFailed{ title: String, expected_secs: u64, actual_secs: u64 }
 }
 
 impl fmt::Display for DownloadError
@@ -29,6 +35,10 @@ impl fmt::Display for DownloadError
             DownloadError::DownloadFailed{ title, exit_code } => { write!(formatter, "Download: \"{}\" exited with exit code: {} and subsequently failed.", title, exit_code) },
             DownloadError::FailedToCreateFile{ title, file, error_type } => { write!(formatter, "Download: \"{}\" failed, because of being unable to create file \"{}\" due to error: {}.", title, file.display(), error_type) },
             DownloadError::FailedToCopyContentsToFile{ title, file, error_type } => { write!(formatter, "Download: \"{}\" failed, because of being unable to copy HTTP response contents to file \"{}\" with errorcode: {}.", title, file.display(), error_type) },
+            DownloadError::FailedToReadFile{ title,error_type } => { write!(formatter, "Download: \"{}\" failed, due to not being able to validate, because or read error: {}.", title, error_type) },
+            DownloadError::FailedToReadFileMetadata{ title, error_type } => { write!(formatter, "Download: \"{}\" failed, due to not being able to validate, because or read metadata error: {}.", title, error_type) },
+            DownloadError::FailedToReadMP4{ title, error_type } => { write!(formatter, "Download: \"{}\" failed, due to not being able to read the MP4 (corrupt?), error: {}.", title, error_type) },
+            DownloadError::ValidationFailed{ title, expected_secs, actual_secs } => { write!(formatter, "Download: \"{}\" failed, expected file to be {} seconds long, got {} seconds.", title, expected_secs, actual_secs) },
         }
     }   
 }
@@ -45,7 +55,7 @@ pub fn download_episode(options: &DownloadOptions, episode: &Episode, m3u_id: M3
     let mut last_error: DownloadError = DownloadError::StartDownloadFailed { title: "".to_string(), error_type: "".to_string() }; // Must be initialized
     for attempt in 1..=options.max_reties 
     {
-        match download_attempt(&url, &output_file, episode.title.as_str()) 
+        match download_attempt(&url, &output_file, episode.container_extension.as_str(), episode.seconds, episode.title.as_str()) 
         {
             Ok(()) => return Ok(()),
             Err(e) => 
@@ -59,7 +69,7 @@ pub fn download_episode(options: &DownloadOptions, episode: &Episode, m3u_id: M3
     Err(last_error)
 }
 
-fn download_attempt(url: &str, output_file: &Path, debug_title: &str) -> Result<(), DownloadError>
+fn download_attempt(url: &str, output_file: &Path, container_extension: &str, expected_secs: u64, debug_title: &str) -> Result<(), DownloadError>
 {
     let client = Client::builder()
         .redirect(reqwest::redirect::Policy::limited(10))
@@ -80,6 +90,50 @@ fn download_attempt(url: &str, output_file: &Path, debug_title: &str) -> Result<
 
     response.copy_to(&mut file)
         .map_err(|e| DownloadError::FailedToCopyContentsToFile { title: debug_title.to_string(), file: output_file.to_path_buf(), error_type: e.to_string() })?;
+
+    validate_download(output_file, container_extension, expected_secs, debug_title)
+}
+
+fn validate_download(output_file: &Path, container_extension: &str, expected_secs: u64, debug_title: &str) -> Result<(), DownloadError>
+{
+    const TOLERANCE: u64 = 2; // 2 seconds
+    
+    match container_extension
+    {
+        "mp4" | "m4v" | "mov" => validate_mp4(output_file, expected_secs, debug_title, TOLERANCE),
+        "mkv" | "webm" => validate_mkv(output_file, expected_secs, debug_title, TOLERANCE),
+        _ => {
+            warning!("Unable to validate \"{}\", unsupported container type: {}.", debug_title, container_extension);
+            Ok(())
+        }
+    }
+}
+
+fn validate_mp4(output_file: &Path, expected_secs: u64, debug_title: &str, tolerance_secs: u64) -> Result<(), DownloadError>
+{
+    let file = File::open(output_file)
+        .map_err(|error| { return DownloadError::FailedToReadFile { title: debug_title.to_string(), error_type: error.to_string() } })?;
+    let size = file.metadata()
+        .map_err(|error| { return DownloadError::FailedToReadFileMetadata { title: debug_title.to_string(), error_type: error.to_string() } })?
+        .len();
+    let reader = BufReader::new(file);
+
+    let mp4 = Mp4Reader::read_header(reader, size)
+        .map_err(|error| { return DownloadError::FailedToReadMP4 { title: debug_title.to_string(), error_type: error.to_string() } })?;
+
+    let actual_secs = mp4.duration().as_secs();
+    let delta = actual_secs.abs_diff(expected_secs);
+
+    if delta > tolerance_secs {
+        return Err(DownloadError::ValidationFailed { title: debug_title.to_string(), expected_secs: expected_secs, actual_secs: actual_secs } );
+    }
+
+    Ok(())
+}
+
+fn validate_mkv(output_file: &Path, expected_secs: u64, debug_title: &str, tolerance_secs: u64) -> Result<(), DownloadError>
+{
+    // TODO: MKV
 
     Ok(())
 }
