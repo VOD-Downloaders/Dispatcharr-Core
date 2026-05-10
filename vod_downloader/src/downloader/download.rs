@@ -22,6 +22,8 @@ pub enum DownloadError
     FailedToReadFile{ title: String, error_type: String },
     FailedToReadFileMetadata{ title: String, error_type: String },
     FailedToReadMP4{ title: String, error_type: String },
+    FailedToReadMKV{ title: String, error_type: String },
+    FailedToRetrieveDuration{ title: String },
     ValidationFailed{ title: String, expected_secs: u64, actual_secs: u64 }
 }
 
@@ -38,6 +40,8 @@ impl fmt::Display for DownloadError
             DownloadError::FailedToReadFile{ title,error_type } => { write!(formatter, "Download: \"{}\" failed, due to not being able to validate, because or read error: {}.", title, error_type) },
             DownloadError::FailedToReadFileMetadata{ title, error_type } => { write!(formatter, "Download: \"{}\" failed, due to not being able to validate, because or read metadata error: {}.", title, error_type) },
             DownloadError::FailedToReadMP4{ title, error_type } => { write!(formatter, "Download: \"{}\" failed, due to not being able to read the MP4 (corrupt?), error: {}.", title, error_type) },
+            DownloadError::FailedToReadMKV{ title, error_type } => { write!(formatter, "Download: \"{}\" failed, due to not being able to read the MKV (corrupt?), error: {}.", title, error_type) },
+            DownloadError::FailedToRetrieveDuration{ title } => { write!(formatter, "Download: \"{}\" failed, due to not being able to read duration.", title) },
             DownloadError::ValidationFailed{ title, expected_secs, actual_secs } => { write!(formatter, "Download: \"{}\" failed, expected file to be {} seconds long, got {} seconds.", title, expected_secs, actual_secs) },
         }
     }   
@@ -133,7 +137,20 @@ fn validate_mp4(output_file: &Path, expected_secs: u64, debug_title: &str, toler
 
 fn validate_mkv(output_file: &Path, expected_secs: u64, debug_title: &str, tolerance_secs: u64) -> Result<(), DownloadError>
 {
-    // TODO: MKV
+    let file = File::open(output_file)
+        .map_err(|error| { return DownloadError::FailedToReadFile { title: debug_title.to_string(), error_type: error.to_string() } })?;
+
+    let mkv = matroska::Matroska::open(file)
+        .map_err(|error| { return DownloadError::FailedToReadMKV { title: debug_title.to_string(), error_type: error.to_string() }})?;
+
+    let Some(actual_secs) = mkv.info.duration else {
+        return Err(DownloadError::FailedToRetrieveDuration { title: debug_title.to_string() });
+    };
+    let delta = actual_secs.as_secs().abs_diff(expected_secs);
+
+    if delta > tolerance_secs {
+        return Err(DownloadError::ValidationFailed { title: debug_title.to_string(), expected_secs: expected_secs, actual_secs: actual_secs.as_secs()} );
+    }
 
     Ok(())
 }
