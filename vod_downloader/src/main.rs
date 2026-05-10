@@ -64,21 +64,27 @@ fn main() -> ExitCode {
 
     // Setup stats
     let mut total: u32 = 0;
-    for (season_num, season) in &options.recipe.seasons
+    if options.recipe.seasons.is_empty() {
+        total = retrieved_episodes.values().map(|s| s.episodes.len()).sum::<usize>() as u32;
+    }
+    else
     {
-        if season.episodes.len() == 0 {
-            match retrieved_episodes.get(season_num)
-            {
-                Some(retrieved_season) => {
-                    total += retrieved_season.episodes.len() as u32;
-                },
-                None => {
-                    warning!("Recipe wants season {0}, but no season {0} in HTTP response.", season_num);
+        for (season_num, season) in &options.recipe.seasons
+        {
+            if season.episodes.len() == 0 {
+                match retrieved_episodes.get(season_num)
+                {
+                    Some(retrieved_season) => {
+                        total += retrieved_season.episodes.len() as u32;
+                    },
+                    None => {
+                        warning!("Recipe wants season {0}, but no season {0} in HTTP response.", season_num);
+                    }
                 }
             }
-        }
-        else { 
-            total += season.episodes.len() as u32; 
+            else { 
+                total += season.episodes.len() as u32; 
+            }
         }
     }
 
