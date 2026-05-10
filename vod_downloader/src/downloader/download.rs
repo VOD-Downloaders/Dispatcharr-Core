@@ -190,27 +190,23 @@ fn validate_mp4_or_mkv(path: &Path, container_extension: &str, expected_secs: u6
     let time_base = track.codec_params.time_base.unwrap();
     let track_id = track.id;
 
-    // Check if the file reports a duration significantly shorter than expected
-    // This prevents the "Seek beyond EOF" panic in MKV
-    if let Some(n_frames) = track.codec_params.n_frames {
+    // Check if the file reports a duration significantly shorter than expected, this prevents "Seek beyond EOF" panic in MKV
+    if let Some(n_frames) = track.codec_params.n_frames 
+    {
         let metadata_duration = time_base.calc_time(n_frames).seconds;
+        
         if metadata_duration < expected_secs.saturating_sub(tolerance_secs) {
-            return Err(DownloadError::ValidationFailedDurationMismatch { 
-                title: debug_title.to_string(), 
-                expected_secs, 
-                actual_secs: metadata_duration 
-            });
+            return Err(DownloadError::ValidationFailedDurationMismatch { title: debug_title.to_string(), expected_secs, actual_secs: metadata_duration });
         }
     }
 
-    // 2. "Prime" the demuxer (Fixes the EBML header panic)
-    // Some MKV files need to hit the first cluster before they can seek reliably
+    // Start the demuxer
     let _ = format.next_packet(); 
 
-    // 3. Attempt Seek (only if plausible)
     let seek_target = expected_secs.saturating_sub(30);
-    if seek_target > 0 {
-        // If the seek fails, we don't necessarily error out; we just start from the beginning
+    if seek_target > 0 
+    {
+        // If the seek fails, we don't necessarily error, we just start from the beginning
         let _ = format.seek(SeekMode::Coarse, SeekTo::Time {
                 time: Time::new(seek_target, 0.0),
                 track_id: None,
@@ -220,29 +216,29 @@ fn validate_mp4_or_mkv(path: &Path, container_extension: &str, expected_secs: u6
 
     let mut last_secs = 0.0f64;
 
-    loop {
-        match format.next_packet() {
+    loop 
+    {
+        match format.next_packet() 
+        {
             Ok(packet) if packet.track_id() == track_id => {
                 let t = time_base.calc_time(packet.ts);
                 last_secs = t.seconds as f64 + t.frac;
             }
             Ok(_) => continue,
+
             Err(SymphoniaError::IoError(_)) | Err(SymphoniaError::ResetRequired) => break,
+
             Err(error) => return Err(DownloadError::ValidationFailedPacketReadError { title: debug_title.to_string(), error_type: error.to_string() }),
         }
     }
 
-    // Final Comparison
+    // Final comparison
     let diff = (last_secs - expected_secs as f64).abs();
 
     if diff <= tolerance_secs as f64 {
         info!("Validation successful for \"{}\": found {}s, expected {}s", debug_title, last_secs, expected_secs);
         Ok(())
     } else {
-        Err(DownloadError::ValidationFailedDurationMismatch { 
-            title: debug_title.to_string(), 
-            expected_secs, 
-            actual_secs: last_secs as u64 
-        })
+        Err(DownloadError::ValidationFailedDurationMismatch { title: debug_title.to_string(), expected_secs, actual_secs: last_secs as u64 })
     }
 }
