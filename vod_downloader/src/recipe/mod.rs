@@ -12,18 +12,29 @@ use serde::Deserialize;
 /////////////////////////////////////////////////////
 // Recipe
 /////////////////////////////////////////////////////
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Season
 {
     pub episodes: Vec<u32>,
     pub exclude: Vec<u32>
-} 
+}
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Recipe 
 {
     pub series_id: u64,
     pub seasons: HashMap<u32, Season>
+}
+
+impl Recipe
+{
+    pub fn new() -> Self
+    {
+        Self {
+            series_id: 0,
+            seasons: HashMap::new()
+        }
+    }
 }
 
 /////////////////////////////////////////////////////

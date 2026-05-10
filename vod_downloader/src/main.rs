@@ -14,6 +14,8 @@ fn main() -> ExitCode {
     }
     
     // Parse arguments and get the download options
+    info!("Parsing cli arguments...");
+
     let arguments = cli::parse_cli_arguments(std::env::args().collect());
     let options = cli::parse_cli_options(arguments);
     
@@ -22,12 +24,10 @@ fn main() -> ExitCode {
         return ExitCode::FAILURE;
     };
     
-    trace!("Options: {:?}", options);
-    
     // Set logging based on download options/cli parameters
     {
         logging::clear_sinks();
-
+        
         let log_level: logging::LogLevel = if options.verbose {
             logging::LogLevel::Trace
         } else {
@@ -35,20 +35,24 @@ fn main() -> ExitCode {
         };
         
         logging::add_sink(Box::new(logging::ConsoleSink::new(Some(log_level.clone()))));
-
+        
         if let Some(ref path) = options.log_file {
             let filesink = logging::FileSink::new(path.as_path(), Some(log_level));
-
+            
             let Ok(filesink) = filesink else {
                 error!("Failed to open log file '{}' with error: {}.", path.display(), filesink.unwrap_err().kind());
                 return ExitCode::FAILURE;
             };
-
+            
             logging::add_sink(Box::new(filesink));
         }
     }
 
-    // Retrieve all episodes to download
+    trace!("Options: {:?}", options);
+
+    // Retrieve all episodes available
+    info!("Retrieving episodes from Dispatcharr using HTTP GET.");
+
     let episodes_m3u_id = downloader::retrieve_episodes(&options);
 
     let Ok((episodes, m3u_id)) = episodes_m3u_id else {
@@ -56,7 +60,7 @@ fn main() -> ExitCode {
         return ExitCode::FAILURE;
     };
 
-    trace!("Episodes: {:?}", episodes);
+    trace!("Episodes available: {:?}", episodes);
 
     // Download all episodes
     let total: u32 = episodes.values().map(|s| s.episodes.len()).sum::<usize>() as u32;

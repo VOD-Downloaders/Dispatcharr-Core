@@ -7,10 +7,10 @@ use std::collections::HashMap;
 pub struct Episode
 {
     pub uuid: String,
-    // pub episode_number: u32,
+    pub episode_number: u32,
     pub title: String,
     pub container_extension: String,
-    pub seconds: u64
+    pub seconds: Option<u64> // Note: Not all episodes contain their supposed length
 }
 
 #[derive(Debug, Clone)]

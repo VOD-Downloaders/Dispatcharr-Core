@@ -67,22 +67,24 @@ pub fn download_episode(options: &DownloadOptions, episode: &Episode, m3u_id: M3
                 return Ok(());
             },
             OverwriteMode::Bad => {
-                let validation_result = validate_download(output_file.as_path(), episode.container_extension.as_str(), episode.seconds, episode.title.as_str());
-                match validation_result
+                if let Some(seconds) = episode.seconds
                 {
-                    Ok(_) => {
-                        info!("Episode \"{}\" already exists on disk, OverwriteMode::Bad selected, the episode has been fully validated, so skipping this episode.", episode.title);
-                        return Ok(());
-                    }
-                    Err(error) => {
-                        if let DownloadError::ValidationFailed { title: _, expected_secs: _, actual_secs: _ } = error {
-                            warning!("Episode \"{}\" already exists on disk, OverwriteMode::Bad selected, this episode failed validation, so overwriting.", episode.title);
-                        } else {
-                            error!("Episode \"{}\" already exists on disk, OverwriteMode::Bad selected, this episode failed validation with error: \"{}\", so overwriting.", episode.title, error);
+                    let validation_result = validate_download(output_file.as_path(), episode.container_extension.as_str(), seconds, episode.title.as_str());
+                    match validation_result
+                    {
+                        Ok(_) => {
+                            info!("Episode \"{}\" already exists on disk, OverwriteMode::Bad selected, the episode has been fully validated, so skipping this episode.", episode.title);
+                            return Ok(());
+                        }
+                        Err(error) => {
+                            if let DownloadError::ValidationFailed { title: _, expected_secs: _, actual_secs: _ } = error {
+                                warning!("Episode \"{}\" already exists on disk, OverwriteMode::Bad selected, this episode failed validation, so overwriting.", episode.title);
+                            } else {
+                                error!("Episode \"{}\" already exists on disk, OverwriteMode::Bad selected, this episode failed validation with error: \"{}\", so overwriting.", episode.title, error);
+                            }
                         }
                     }
                 }
-
             },
             OverwriteMode::All => {
                 info!("Episode \"{}\" already exists on disk, OverwriteMode::All selected, so overwriting...", episode.title);
@@ -108,7 +110,7 @@ pub fn download_episode(options: &DownloadOptions, episode: &Episode, m3u_id: M3
     Err(last_error)
 }
 
-fn download_attempt(url: &str, output_file: &Path, container_extension: &str, expected_secs: u64, debug_title: &str) -> Result<(), DownloadError>
+fn download_attempt(url: &str, output_file: &Path, container_extension: &str, expected_secs: Option<u64>, debug_title: &str) -> Result<(), DownloadError>
 {
     let client = Client::builder()
         .redirect(reqwest::redirect::Policy::limited(10))
@@ -130,7 +132,16 @@ fn download_attempt(url: &str, output_file: &Path, container_extension: &str, ex
     response.copy_to(&mut file)
         .map_err(|e| DownloadError::FailedToCopyContentsToFile { title: debug_title.to_string(), file: output_file.to_path_buf(), error_type: e.to_string() })?;
 
-    validate_download(output_file, container_extension, expected_secs, debug_title)
+    // Validate
+    if let Some(seconds) = expected_secs
+    {
+        validate_download(output_file, container_extension, seconds, debug_title)
+    }
+    else 
+    {
+        warning!("Unable to validate episode \"{}\", no duration retrieved from HTTP GET.", debug_title);
+        Ok(())
+    }
 }
 
 fn validate_download(output_file: &Path, container_extension: &str, expected_secs: u64, debug_title: &str) -> Result<(), DownloadError>

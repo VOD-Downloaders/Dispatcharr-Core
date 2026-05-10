@@ -3,6 +3,9 @@ use std::path::PathBuf;
 
 use super::arguments::CliOption;
 
+use super::super::recipe;
+use super::super::recipe::Recipe;
+
 /////////////////////////////////////////////////////
 // CliError
 /////////////////////////////////////////////////////
@@ -15,7 +18,8 @@ pub enum CliError
     NoUrl,
     InvalidUrl{ message: String },
     NoSeriesId,
-    InvalidSeriesId,
+    NonExistentRecipeFile{ file: PathBuf },
+    RecipeParseError{ parse_error: recipe::ParseError },
     NoApiKey,
     InvalidOutputPath{ message: String },
     InvalidLogFile{ message: String },
@@ -32,8 +36,9 @@ impl fmt::Display for CliError
             CliError::UnknownOption{ option } => { write!(formatter, "Unknown option: '--{}=...'.", option) },
             CliError::NoUrl => { write!(formatter, "No url passed in. (use --url=...).") },
             CliError::InvalidUrl{ message} => { write!(formatter, "Url passed in is invalid, {}.", message) },
-            CliError::NoSeriesId => { write!(formatter, "No series id passed in. (use --series=...).") },
-            CliError::InvalidSeriesId => { write!(formatter, "Series id passed in is not a valid Dispatcharr ID.") },
+            CliError::NoSeriesId => { write!(formatter, "No series id in your recipe.") },
+            CliError::NonExistentRecipeFile{ file } => { write!(formatter, "Recipe file passed in (\"{}\") does not exist.", file.display()) },
+            CliError::RecipeParseError{ parse_error } => { write!(formatter, "Failed to create recipe with error: {}", parse_error) },
             CliError::NoApiKey => { write!(formatter, "No api key passed in. (use --api-key=...).") },
             CliError::InvalidOutputPath{ message } => { write!(formatter, "Invalid output path passed in, {}.", message) },
             CliError::InvalidLogFile{ message } => { write!(formatter, "Invalid log file path passed in, {}.", message) },
@@ -57,14 +62,14 @@ pub enum OverwriteMode
 pub struct DownloadOptions
 {
     pub url: String, // ex. http://192.168.2.2:9191 or https://dispatcharr.example.com
-    pub series_id: u32,
     pub api_key: String,
     
     pub output_folder: PathBuf,
     
     pub log_file: Option<PathBuf>,
+
+    pub recipe: Recipe,
     
-    // TODO: Recipe
     pub max_reties: u32,
     pub overwrite_mode: OverwriteMode,
     pub verbose: bool,
@@ -77,12 +82,13 @@ pub fn parse_cli_options(cli_options: Vec<CliOption>) -> Result<DownloadOptions,
 {
     let mut options: DownloadOptions = DownloadOptions { 
         url: String::new(),
-        series_id: 0,
         api_key: String::new(),
 
         output_folder: PathBuf::from("."),
 
         log_file: None,
+
+        recipe: Recipe::new(),
 
         max_reties: 3,
         overwrite_mode: OverwriteMode::Bad,
@@ -96,7 +102,7 @@ pub fn parse_cli_options(cli_options: Vec<CliOption>) -> Result<DownloadOptions,
         {
             CliOption::Value(value) => 
             {
-                options.series_id = parse_series_id(value)?;
+                options.recipe = parse_recipe(value)?;
             },
             CliOption::Flag(value) => 
             {
@@ -144,11 +150,6 @@ pub fn parse_cli_options(cli_options: Vec<CliOption>) -> Result<DownloadOptions,
             {
                 match key.as_str()
                 {
-                    "series" => { options.series_id = parse_series_id(value)?; },
-                    "seriesid" => { options.series_id = parse_series_id(value)?; },
-                    "series-id" => { options.series_id = parse_series_id(value)?; },
-                    "series_id" => { options.series_id = parse_series_id(value)?; },
-                    
                     "url" => { options.url = parse_url(value)?; },
                     "baseurl" => { options.url = parse_url(value)?; },
                     "base-url" => { options.url = parse_url(value)?; },
@@ -182,7 +183,7 @@ pub fn parse_cli_options(cli_options: Vec<CliOption>) -> Result<DownloadOptions,
         i += 1;
     }
 
-    if options.series_id == 0 { return Err(CliError::NoSeriesId); }
+    if options.recipe.series_id == 0 { return Err(CliError::NoSeriesId); }
     if options.url == "" { return Err(CliError::NoUrl); }
     if options.api_key == "" { return Err(CliError::NoApiKey); }
     if options.max_reties == 0 { return Err(CliError::InvalidRetryCount{ message: "retry count must be greater than zero".to_string() }); }
@@ -190,9 +191,21 @@ pub fn parse_cli_options(cli_options: Vec<CliOption>) -> Result<DownloadOptions,
     Ok(options)
 }
 
-fn parse_series_id(series_id: &str) -> Result<u32, CliError>
+fn parse_recipe(file: &str) -> Result<Recipe, CliError>
 {
-    Ok(series_id.parse::<u32>().map_err(|_error| { return CliError::InvalidSeriesId; })?)
+    let path = file.parse::<PathBuf>().unwrap();
+
+    if !path.is_file()
+    {
+        Err(CliError::NonExistentRecipeFile{ file: path })
+    }
+    else 
+    {
+        let recipe = recipe::parse_recipe(path.as_path())
+            .map_err(|error| { return CliError::RecipeParseError{ parse_error: error} })?;
+        
+        Ok(recipe)
+    }
 }
 
 fn parse_url(url: &str) -> Result<String, CliError>
