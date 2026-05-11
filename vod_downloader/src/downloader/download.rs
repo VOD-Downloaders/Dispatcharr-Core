@@ -133,6 +133,7 @@ fn download_attempt(url: &str, output_file: &Path, container_extension: &str, ex
 {
     let client = Client::builder()
         .redirect(reqwest::redirect::Policy::limited(10))
+        .connect_timeout(std::time::Duration::from_secs(30))
         .build()
         .map_err(|e| DownloadError::StartDownloadFailed { title: debug_title.to_string(), error_type: e.to_string() })?;
 
@@ -148,16 +149,27 @@ fn download_attempt(url: &str, output_file: &Path, container_extension: &str, ex
     let mut file = File::create(output_file)
         .map_err(|e| DownloadError::FailedToCreateFile { title: debug_title.to_string(), file: output_file.to_path_buf(), error_type: e.to_string() })?;
 
-    response.copy_to(&mut file)
-        .map_err(|e| DownloadError::FailedToCopyContentsToFile { title: debug_title.to_string(), file: output_file.to_path_buf(), error_type: e.to_string() })?;
+    if let Err(e) = response.copy_to(&mut file) {
+        drop(file); // Release handle before removing
+        let _ = std::fs::remove_file(output_file); // Clean up partial file
+        return Err(DownloadError::FailedToCopyContentsToFile { title: debug_title.to_string(), file: output_file.to_path_buf(), error_type: e.to_string() });
+    }
 
     // Validate
     if let Some(seconds) = expected_secs
     {
-        let actual_seconds = validate_download(output_file, container_extension, seconds)
-            .map_err(|error| { return DownloadError::ValidationFailed { title: debug_title.to_string(), error: error } })?;
-        info!("Validation successful for \"{}\": found {}s, expected {}s", debug_title, actual_seconds, seconds);
-        Ok(())
+        match validate_download(output_file, container_extension, seconds)
+        {
+            Ok(actual_seconds) => {
+                info!("Validation successful for \"{}\": found {}s, expected {}s", debug_title, actual_seconds, seconds);
+                Ok(())
+            }
+            Err(error) => {
+                drop(file); // Release handle before removing
+                let _ = std::fs::remove_file(output_file); // Clean up partial file
+                return Err(DownloadError::ValidationFailed { title: debug_title.to_string(), error: error });
+            }
+        }
     }
     else 
     {
@@ -174,7 +186,7 @@ fn validate_download(output_file: &Path, container_extension: &str, expected_sec
     match container_extension
     {
         "mp4" | "m4v" | "mov" | "mkv" | "webm" => {
-            let last_error = ValidationError::NoTrackFound; // Must be initialized
+            let mut last_error: Option<ValidationError> = None;
             
             for i in 1..=VALIDATION_RETRIES
             {
@@ -185,17 +197,18 @@ fn validate_download(output_file: &Path, container_extension: &str, expected_sec
                         match error 
                         {
                             // Definite failure
-                            ValidationError::DurationMismatch { expected_secs: _, actual_secs: _ } => { return Err(error); }
-                            ValidationError::NoTrackFound => { return Err(error); }
+                            ValidationError::DurationMismatch { expected_secs: _, actual_secs: _ } | ValidationError::NoTrackFound => { return Err(error); }
+                            
                             _ => { // Could be a tiny hiccup
                                 warning!("[Validation attempt {}/3] Validation failed with non-critical error: {}, retrying.", i, error);
+                                last_error = Some(error);
                             }
                         }
                     }
                 }
             }
 
-            Err(last_error)
+            Err(last_error.unwrap()) // Safe
         }
         _ => {
             Err(ValidationError::UnsupportedContainerType { container_type: container_extension.to_string() })
