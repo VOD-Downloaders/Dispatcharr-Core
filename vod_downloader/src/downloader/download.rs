@@ -10,6 +10,7 @@ use symphonia::core::formats::{FormatOptions, SeekMode, SeekTo};
 use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
+use symphonia::core::probe::ProbeResult;
 use symphonia::core::units::Time;
 
 use super::types::*;
@@ -51,6 +52,7 @@ pub enum ValidationError
     FailedToReadFile{ error_type: String },
     FailedToGetFormat{ error_type: String },
     NoTrackFound,
+    FeatureNotFound{ error_type: String },
     PacketReadError{ error_type: String },
     DurationMismatch{ expected_secs: u64, actual_secs: u64 }
 }
@@ -65,6 +67,7 @@ impl fmt::Display for ValidationError
             ValidationError::FailedToReadFile{ error_type } => { write!(formatter, "Read error: {}.",error_type) },
             ValidationError::FailedToGetFormat{ error_type } => { write!(formatter, "Unable to read video format, error: {}.", error_type) },
             ValidationError::NoTrackFound => { write!(formatter, "Unable to find a video track in the file.") },
+            ValidationError::FeatureNotFound{ error_type } => { write!(formatter, "Feature not found error: {}.", error_type) },
             ValidationError::PacketReadError{ error_type } => { write!(formatter, "Unable to read packets, error: {}.", error_type) },
             ValidationError::DurationMismatch{ expected_secs, actual_secs } => { write!(formatter, "Duration mismatch, expected file to be {} seconds long, got {} seconds.", expected_secs, actual_secs) },
         }
@@ -100,7 +103,13 @@ pub fn download_episode(options: &DownloadOptions, episode: &Episode, m3u_id: M3
                             return Ok(());
                         }
                         Err(error) => {
-                            warning!("Episode \"{}\" already exists on disk, OverwriteMode::Bad selected, this episode failed validation with error: \"{}\", so overwriting.", episode.title, error);
+                            if let ValidationError::FeatureNotFound { error_type } = error {
+                                warning!("Episode \"{}\" already exists on disk, OverwriteMode::Bad selected, this episode cannot be validated because of missing feature: \"{}\", so skipping...", episode.title, error_type);
+                                return Ok(());
+                            }
+                            else {
+                                warning!("Episode \"{}\" already exists on disk, OverwriteMode::Bad selected, this episode failed validation with error: \"{}\", so overwriting.", episode.title, error);
+                            }
                         }
                     }
                 }
@@ -226,11 +235,25 @@ fn validate_mp4_or_mkv(path: &Path, container_extension: &str, expected_secs: u6
     let mut hint = Hint::new();
     hint.with_extension(container_extension);
 
-    let probed = symphonia::default::get_probe()
+    let probed_result= symphonia::default::get_probe()
         .format(&hint, mss, &FormatOptions::default(), &MetadataOptions::default())
-        .map_err(|error| ValidationError::FailedToGetFormat { error_type: error.to_string() })?;
+        .map_err(|error| ValidationError::FailedToGetFormat { error_type: error.to_string() });
+        
+    if let Err(error) = &probed_result 
+    {
+        if let ValidationError::FailedToGetFormat { error_type } = error 
+        {
+            if error_type.contains("unsupported feature") {
+                return Err(ValidationError::FeatureNotFound { error_type: error_type.clone() });
+            }
+        }
+        else 
+        {
+            return Err(error.clone());    
+        }
+    } 
 
-    let mut format = probed.format;
+    let mut format = probed_result.unwrap().format;
 
     // 1. Find the track and check metadata duration first
     let track = format.tracks()
