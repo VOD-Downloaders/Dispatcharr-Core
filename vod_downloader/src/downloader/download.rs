@@ -273,7 +273,7 @@ fn validate_mp4_or_mkv(path: &Path, container_extension: &str, expected_secs: u6
                 return Err(ValidationError::FeatureNotFound { error_type: error_type.clone() });
             }
         }
-        
+
         return Err(error.clone());    
     } 
 
@@ -298,8 +298,17 @@ fn validate_mp4_or_mkv(path: &Path, container_extension: &str, expected_secs: u6
         }
     }
 
-    // Start the demuxer
-    let _ = format.next_packet(); 
+    // Start the demuxer, necessary for some MKV files
+    loop 
+    {
+        match format.next_packet() 
+        {
+            Ok(packet) if packet.track_id() == track_id => break,
+            Ok(_) => continue, // wrong track, keep going
+            Err(SymphoniaError::IoError(_)) | Err(SymphoniaError::ResetRequired) => break,
+            Err(error) => return Err(ValidationError::PacketReadError { error_type: error.to_string() }),
+        }
+    }
 
     let seek_target = expected_secs.saturating_sub(30);
     if seek_target > 0 
