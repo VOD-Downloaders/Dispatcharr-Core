@@ -23,7 +23,8 @@ pub struct Season
 pub struct Recipe 
 {
     pub series_id: u64,
-    pub seasons: HashMap<u32, Season>
+    pub seasons: HashMap<u32, Season>,
+    pub exclude: Vec<u32>
 }
 
 impl Recipe
@@ -32,7 +33,8 @@ impl Recipe
     {
         Self {
             series_id: 0,
-            seasons: HashMap::new()
+            seasons: HashMap::new(),
+            exclude: Vec::new()
         }
     }
 }
