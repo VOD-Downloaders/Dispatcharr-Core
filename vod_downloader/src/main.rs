@@ -95,7 +95,7 @@ fn main() -> ExitCode {
     for (season_num, season) in retrieved_episodes
     {
         // Season not requested
-        if !options.recipe.seasons.is_empty() && !options.recipe.seasons.contains_key(&season_num) {
+        if !options.recipe.seasons.is_empty() && (!options.recipe.seasons.contains_key(&season_num) || options.recipe.exclude.contains(&season_num)) {
             continue;
         }
 
@@ -104,8 +104,8 @@ fn main() -> ExitCode {
             // Episode not requested
             if !options.recipe.seasons.is_empty() 
             {
-                let episodes = &options.recipe.seasons.get(&season_num).unwrap().episodes;
-                if !episodes.is_empty() && !episodes.contains(&episode.episode_number) {
+                let season = &options.recipe.seasons.get(&season_num).unwrap();
+                if !season.episodes.is_empty() && (!season.episodes.contains(&episode.episode_number) || season.exclude.contains(&episode.episode_number)) {
                     continue;
                 }
             }
