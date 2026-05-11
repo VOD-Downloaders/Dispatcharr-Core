@@ -100,7 +100,7 @@ pub fn download_episode(options: &DownloadOptions, episode: &Episode, m3u_id: M3
                             return Ok(());
                         }
                         Err(error) => {
-                            if let ValidationError::DurationMismatch { expected_secs: _, actual_secs: _ } = error {
+                            if let ValidationError::DurationMismatch { expected_secs: _, actual_secs: _ } | ValidationError::NoTrackFound = error {
                                 warning!("Episode \"{}\" already exists on disk, OverwriteMode::Bad selected, this episode failed validation with error: \"{}\", so overwriting.", episode.title, error);
                             } else {
                                 warning!("Episode \"{}\" already exists on disk, OverwriteMode::Bad selected, unable to determine if episode on disk is bad, error: {}. So, skipping...", episode.title, error);
@@ -191,8 +191,9 @@ fn validate_download(output_file: &Path, container_extension: &str, expected_sec
                         {
                             // Definite failure
                             ValidationError::DurationMismatch { expected_secs: _, actual_secs: _ } => { return Err(error); }
+                            ValidationError::NoTrackFound => { return Err(error); }
                             _ => { // Could be a tiny hiccup
-                                warning!("[Validation attempt {}/3] Validation failed with error: {}, retrying.", i, error);
+                                warning!("[Validation attempt {}/3] Validation failed with non-critical error: {}, retrying.", i, error);
                             }
                         }
                     }
