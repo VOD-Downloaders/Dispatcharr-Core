@@ -103,12 +103,22 @@ pub fn download_episode(options: &DownloadOptions, episode: &Episode, m3u_id: M3
                             return Ok(());
                         }
                         Err(error) => {
-                            if let ValidationError::FeatureNotFound { error_type } = error {
-                                warning!("Episode \"{}\" already exists on disk, OverwriteMode::Bad selected, this episode cannot be validated because of missing feature: \"{}\", so skipping...", episode.title, error_type);
-                                return Ok(());
-                            }
-                            else {
-                                warning!("Episode \"{}\" already exists on disk, OverwriteMode::Bad selected, this episode failed validation with error: \"{}\", so overwriting.", episode.title, error);
+                            match error
+                            {
+                                // Validation not possible
+                                ValidationError::FeatureNotFound { error_type } => { 
+                                    warning!("Episode \"{}\" already exists on disk, OverwriteMode::Bad selected, this episode cannot be validated because of missing feature: \"{}\", so skipping...", episode.title, error_type);
+                                    return Ok(());
+                                },
+                                ValidationError::UnsupportedContainerType { container_type } => {
+                                    warning!("Episode \"{}\" already exists on disk, OverwriteMode::Bad selected, this episode cannot be validated because of unsupported container type: \"{}\", so skipping...", episode.title, container_type);
+                                    return Ok(());
+                                }
+
+                                // Validation failed
+                                _ => {
+                                    warning!("Episode \"{}\" already exists on disk, OverwriteMode::Bad selected, this episode failed validation with error: \"{}\", so overwriting.", episode.title, error);
+                                }
                             }
                         }
                     }
@@ -174,9 +184,25 @@ fn download_attempt(url: &str, output_file: &Path, container_extension: &str, ex
                 Ok(())
             }
             Err(error) => {
-                drop(file); // Release handle before removing
-                let _ = std::fs::remove_file(output_file); // Clean up partial file
-                return Err(DownloadError::ValidationFailed { title: debug_title.to_string(), error: error });
+                match error
+                {
+                    // Validation not possible
+                    ValidationError::FeatureNotFound { error_type } => { 
+                        warning!("Unable to validate episode \"{}\", this episode cannot be validated because of missing feature: \"{}\".", debug_title, error_type);
+                        return Ok(());
+                    },
+                    ValidationError::UnsupportedContainerType { container_type } => {
+                        warning!("Unable to validate episode \"{}\", this episode cannot be validated because of unsupported container type: \"{}\".", debug_title, container_type);
+                        return Ok(());
+                    }
+
+                    // Validation failed
+                    _ => {
+                        drop(file); // Release handle before removing
+                        let _ = std::fs::remove_file(output_file); // Clean up partial file
+                        Err(DownloadError::ValidationFailed { title: debug_title.to_string(), error: error })
+                    }
+                }
             }
         }
     }
