@@ -17,7 +17,7 @@ use super::super::cli::OverwriteMode;
 use super::super::cli::DownloadOptions;
 
 /////////////////////////////////////////////////////
-// DownloadError
+// DownloadError & ValidationError
 /////////////////////////////////////////////////////
 #[derive(Debug, Clone)]
 pub enum DownloadError
@@ -26,11 +26,7 @@ pub enum DownloadError
     DownloadFailed{ title: String, exit_code: i32 },
     FailedToCreateFile{ title: String, file: PathBuf, error_type: String },
     FailedToCopyContentsToFile{ title: String, file: PathBuf, error_type: String },
-    ValidationFailedToReadFile{ title: String, error_type: String },
-    ValidationFailedToGetFormat{ title: String, error_type: String },
-    ValidationFailedNoTrackFound{ title: String },
-    ValidationFailedPacketReadError{ title: String, error_type: String },
-    ValidationFailedDurationMismatch{ title: String, expected_secs: u64, actual_secs: u64 }
+    ValidationFailed{ title: String, error: ValidationError },
 }
 
 impl fmt::Display for DownloadError
@@ -43,11 +39,34 @@ impl fmt::Display for DownloadError
             DownloadError::DownloadFailed{ title, exit_code } => { write!(formatter, "Download: \"{}\" exited with exit code: {} and subsequently failed.", title, exit_code) },
             DownloadError::FailedToCreateFile{ title, file, error_type } => { write!(formatter, "Download: \"{}\" failed, because of being unable to create file \"{}\" due to error: {}.", title, file.display(), error_type) },
             DownloadError::FailedToCopyContentsToFile{ title, file, error_type } => { write!(formatter, "Download: \"{}\" failed, because of being unable to copy HTTP response contents to file \"{}\" with errorcode: {}.", title, file.display(), error_type) },
-            DownloadError::ValidationFailedToReadFile{ title,error_type } => { write!(formatter, "Download: \"{}\" failed during validation, because or read error: {}.", title, error_type) },
-            DownloadError::ValidationFailedToGetFormat{ title, error_type } => { write!(formatter, "Download: \"{}\" failed during validation, unable to read the video format with error: {}.", title, error_type) },
-            DownloadError::ValidationFailedNoTrackFound{ title } => { write!(formatter, "Download: \"{}\" failed during validation, unable to find a video track in the file.", title) },
-            DownloadError::ValidationFailedPacketReadError{ title, error_type } => { write!(formatter, "Download: \"{}\" failed during validation, unable to read packets, error: {}.", title, error_type) },
-            DownloadError::ValidationFailedDurationMismatch{ title, expected_secs, actual_secs } => { write!(formatter, "Download: \"{}\" failed during validation, expected file to be {} seconds long, got {} seconds.", title, expected_secs, actual_secs) },
+            DownloadError::ValidationFailed{ title, error } => { write!(formatter, "Download: \"{}\" failed during validation, error: {}.", title, error) },
+        }
+    }   
+}
+
+#[derive(Debug, Clone)]
+pub enum ValidationError
+{
+    UnsupportedContainerType{ container_type: String },
+    FailedToReadFile{ error_type: String },
+    FailedToGetFormat{ error_type: String },
+    NoTrackFound,
+    PacketReadError{ error_type: String },
+    DurationMismatch{ expected_secs: u64, actual_secs: u64 }
+}
+
+impl fmt::Display for ValidationError
+{
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result 
+    {
+        match self
+        {
+            ValidationError::UnsupportedContainerType{ container_type } => { write!(formatter, "Container type not supported for validating: {}.", container_type) },
+            ValidationError::FailedToReadFile{ error_type } => { write!(formatter, "Read error: {}.",error_type) },
+            ValidationError::FailedToGetFormat{ error_type } => { write!(formatter, "Unable to read video format, error: {}.", error_type) },
+            ValidationError::NoTrackFound => { write!(formatter, "Unable to find a video track in the file.") },
+            ValidationError::PacketReadError{ error_type } => { write!(formatter, "Unable to read packets, error: {}.", error_type) },
+            ValidationError::DurationMismatch{ expected_secs, actual_secs } => { write!(formatter, "Duration mismatch, expected file to be {} seconds long, got {} seconds.", expected_secs, actual_secs) },
         }
     }   
 }
@@ -73,7 +92,7 @@ pub fn download_episode(options: &DownloadOptions, episode: &Episode, m3u_id: M3
             OverwriteMode::Bad => {
                 if let Some(seconds) = episode.seconds
                 {
-                    let validation_result = validate_download(output_file.as_path(), episode.container_extension.as_str(), seconds, episode.title.as_str());
+                    let validation_result = validate_download(output_file.as_path(), episode.container_extension.as_str(), seconds);
                     match validation_result
                     {
                         Ok(_) => {
@@ -81,12 +100,12 @@ pub fn download_episode(options: &DownloadOptions, episode: &Episode, m3u_id: M3
                             return Ok(());
                         }
                         Err(error) => {
-                            warning!("Episode \"{}\" already exists on disk, OverwriteMode::Bad selected, this episode failed validation with error: \"{}\", so overwriting.", episode.title, error);
-                            // if let DownloadError::ValidationFailedDurationMismatch { title: _, expected_secs: _, actual_secs: _ } = error {
-                            //     warning!("Episode \"{}\" already exists on disk, OverwriteMode::Bad selected, this episode failed validation, so overwriting.", episode.title);
-                            // } else {
-                            //     error!("Episode \"{}\" already exists on disk, OverwriteMode::Bad selected, this episode failed validation with error: \"{}\", so overwriting.", episode.title, error);
-                            // }
+                            if let ValidationError::DurationMismatch { expected_secs: _, actual_secs: _ } = error {
+                                warning!("Episode \"{}\" already exists on disk, OverwriteMode::Bad selected, this episode failed validation with error: \"{}\", so overwriting.", episode.title, error);
+                            } else {
+                                warning!("Episode \"{}\" already exists on disk, OverwriteMode::Bad selected, unable to determine if episode on disk is bad, error: {}. So, skipping...", episode.title, error);
+                                return Ok(());
+                            }
                         }
                     }
                 }
@@ -140,7 +159,10 @@ fn download_attempt(url: &str, output_file: &Path, container_extension: &str, ex
     // Validate
     if let Some(seconds) = expected_secs
     {
-        validate_download(output_file, container_extension, seconds, debug_title)
+        let actual_seconds = validate_download(output_file, container_extension, seconds)
+            .map_err(|error| { return DownloadError::ValidationFailed { title: debug_title.to_string(), error: error } })?;
+        info!("Validation successful for \"{}\": found {}s, expected {}s", debug_title, actual_seconds, seconds);
+        Ok(())
     }
     else 
     {
@@ -149,25 +171,46 @@ fn download_attempt(url: &str, output_file: &Path, container_extension: &str, ex
     }
 }
 
-fn validate_download(output_file: &Path, container_extension: &str, expected_secs: u64, debug_title: &str) -> Result<(), DownloadError>
+fn validate_download(output_file: &Path, container_extension: &str, expected_secs: u64) -> Result<u64, ValidationError>
 {
+    const VALIDATION_RETRIES: u64 = 3; // 3 validation tries
     const TOLERANCE: u64 = 2; // 2 seconds
     
     match container_extension
     {
-        "mp4" | "m4v" | "mov" => validate_mp4_or_mkv(output_file, container_extension, expected_secs, debug_title, TOLERANCE),
-        "mkv" | "webm" => validate_mp4_or_mkv(output_file, container_extension, expected_secs, debug_title, TOLERANCE),
+        "mp4" | "m4v" | "mov" | "mkv" | "webm" => {
+            let last_error = ValidationError::NoTrackFound; // Must be initialized
+            
+            for i in 1..=VALIDATION_RETRIES
+            {
+                match validate_mp4_or_mkv(output_file, container_extension, expected_secs, TOLERANCE)
+                {
+                    Ok(seconds) => { return Ok(seconds); },
+                    Err(error) => {
+                        match error 
+                        {
+                            // Definite failure
+                            ValidationError::DurationMismatch { expected_secs: _, actual_secs: _ } => { return Err(error); }
+                            _ => { // Could be a tiny hiccup
+                                warning!("[Validation attempt {}/3] Validation failed with error: {}, retrying.", i, error);
+                            }
+                        }
+                    }
+                }
+            }
+
+            Err(last_error)
+        }
         _ => {
-            warning!("Unable to validate \"{}\", unsupported container type: {}.", debug_title, container_extension);
-            Ok(())
+            Err(ValidationError::UnsupportedContainerType { container_type: container_extension.to_string() })
         }
     }
 }
 
-fn validate_mp4_or_mkv(path: &Path, container_extension: &str, expected_secs: u64, debug_title: &str, tolerance_secs: u64) -> Result<(), DownloadError> 
+fn validate_mp4_or_mkv(path: &Path, container_extension: &str, expected_secs: u64, tolerance_secs: u64) -> Result<u64, ValidationError> 
 {
     let file = File::open(path)
-        .map_err(|error| DownloadError::ValidationFailedToReadFile { title: debug_title.to_string(), error_type: error.to_string() })?;
+        .map_err(|error| ValidationError::FailedToReadFile { error_type: error.to_string() })?;
 
     let mss = MediaSourceStream::new(Box::new(file), Default::default());
 
@@ -176,7 +219,7 @@ fn validate_mp4_or_mkv(path: &Path, container_extension: &str, expected_secs: u6
 
     let probed = symphonia::default::get_probe()
         .format(&hint, mss, &FormatOptions::default(), &MetadataOptions::default())
-        .map_err(|error| DownloadError::ValidationFailedToGetFormat { title: debug_title.to_string(), error_type: error.to_string() })?;
+        .map_err(|error| ValidationError::FailedToGetFormat { error_type: error.to_string() })?;
 
     let mut format = probed.format;
 
@@ -184,7 +227,7 @@ fn validate_mp4_or_mkv(path: &Path, container_extension: &str, expected_secs: u6
     let track = format.tracks()
         .iter()
         .find(|t| t.codec_params.time_base.is_some())
-        .ok_or(DownloadError::ValidationFailedNoTrackFound { title: debug_title.to_string() })?;
+        .ok_or(ValidationError::NoTrackFound)?;
 
     let time_base = track.codec_params.time_base.unwrap();
     let track_id = track.id;
@@ -195,7 +238,7 @@ fn validate_mp4_or_mkv(path: &Path, container_extension: &str, expected_secs: u6
         let metadata_duration = time_base.calc_time(n_frames).seconds;
         
         if metadata_duration < expected_secs.saturating_sub(tolerance_secs) {
-            return Err(DownloadError::ValidationFailedDurationMismatch { title: debug_title.to_string(), expected_secs, actual_secs: metadata_duration });
+            return Err(ValidationError::DurationMismatch { expected_secs, actual_secs: metadata_duration });
         }
     }
 
@@ -227,7 +270,7 @@ fn validate_mp4_or_mkv(path: &Path, container_extension: &str, expected_secs: u6
 
             Err(SymphoniaError::IoError(_)) | Err(SymphoniaError::ResetRequired) => break,
 
-            Err(error) => return Err(DownloadError::ValidationFailedPacketReadError { title: debug_title.to_string(), error_type: error.to_string() }),
+            Err(error) => return Err(ValidationError::PacketReadError { error_type: error.to_string() }),
         }
     }
 
@@ -235,9 +278,8 @@ fn validate_mp4_or_mkv(path: &Path, container_extension: &str, expected_secs: u6
     let diff = (last_secs - expected_secs as f64).abs();
 
     if diff <= tolerance_secs as f64 {
-        info!("Validation successful for \"{}\": found {}s, expected {}s", debug_title, last_secs, expected_secs);
-        Ok(())
+        Ok(last_secs as u64)
     } else {
-        Err(DownloadError::ValidationFailedDurationMismatch { title: debug_title.to_string(), expected_secs, actual_secs: last_secs as u64 })
+        Err(ValidationError::DurationMismatch { expected_secs, actual_secs: last_secs as u64 })
     }
 }
