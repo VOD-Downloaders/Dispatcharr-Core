@@ -100,12 +100,7 @@ pub fn download_episode(options: &DownloadOptions, episode: &Episode, m3u_id: M3
                             return Ok(());
                         }
                         Err(error) => {
-                            if let ValidationError::DurationMismatch { expected_secs: _, actual_secs: _ } | ValidationError::NoTrackFound = error {
-                                warning!("Episode \"{}\" already exists on disk, OverwriteMode::Bad selected, this episode failed validation with error: \"{}\", so overwriting.", episode.title, error);
-                            } else {
-                                warning!("Episode \"{}\" already exists on disk, OverwriteMode::Bad selected, unable to determine if episode on disk is bad, error: {}. So, skipping...", episode.title, error);
-                                return Ok(());
-                            }
+                            warning!("Episode \"{}\" already exists on disk, OverwriteMode::Bad selected, this episode failed validation with error: \"{}\", so overwriting.", episode.title, error);
                         }
                     }
                 }
