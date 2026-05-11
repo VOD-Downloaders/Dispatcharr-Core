@@ -273,10 +273,8 @@ fn validate_mp4_or_mkv(path: &Path, container_extension: &str, expected_secs: u6
                 return Err(ValidationError::FeatureNotFound { error_type: error_type.clone() });
             }
         }
-        else 
-        {
-            return Err(error.clone());    
-        }
+        
+        return Err(error.clone());    
     } 
 
     let mut format = probed_result.unwrap().format;
