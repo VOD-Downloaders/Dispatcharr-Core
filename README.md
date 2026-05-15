@@ -5,8 +5,6 @@ The core library powering all Dispatcharr VOD downloading functionality. This cr
 - [Dispatcharr-cli](https://github.com/VOD-Downloaders/Dispatcharr-cli) - Command-line interface
 - [Dispatcharr-plugin](https://github.com/VOD-Downloaders/Dispatcharr-plugin) - Dispatcharr plugin
 
----
-
 ## Features
 
 - Authenticate and communicate with a [Dispatcharr](https://github.com/Dispatcharr/Dispatcharr) instance via its REST API
@@ -15,8 +13,6 @@ The core library powering all Dispatcharr VOD downloading functionality. This cr
 - Structured error types for clean integration into CLI tools and plugins
 - Blocking HTTP client suitable for embedding in both synchronous CLI and plugin contexts
 - JSON serialization/deserialization of all Dispatcharr API payloads
-
----
 
 ## Usage
 
@@ -28,8 +24,6 @@ dispatcharr_download_core = { git = "https://github.com/VOD-Downloaders/Dispatch
 ```
 
 This crate is not (yet) published to crates.io. Pin to a specific commit or tag for stability in production use.
-
----
 
 ## Contributing
 
@@ -51,8 +45,6 @@ If you're fixing a bug or adding a feature that affects [Dispatcharr-cli](https:
 - Prefer returning `Result` types over panicking
 - New dependencies should be justified — this is a library crate
 
----
-
 ## Third-Party Libraries
 
 | Crate | Version | License | Purpose |
@@ -62,8 +54,6 @@ If you're fixing a bug or adding a feature that affects [Dispatcharr-cli](https:
 | [serde](https://crates.io/crates/serde) | 1 | MIT / Apache-2.0 | Serialization/deserialization framework |
 | [serde_json](https://crates.io/crates/serde_json) | 1 | MIT / Apache-2.0 | JSON parsing for API payloads |
 | [symphonia](https://crates.io/crates/symphonia) | 0.5 | MPL-2.0 | Audio/video container handling (MKV, MP4/ISO) |
-
----
 
 ## License
 
