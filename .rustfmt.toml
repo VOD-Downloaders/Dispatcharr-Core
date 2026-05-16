@@ -1,36 +1,42 @@
-# .rustfmt.toml
-
-edition = "2021"
-
-# Required to unlock nightly-only options below
 unstable_features = true
+edition = "2024"
+style_edition = "2024"
 
-# Allman-style: opening brace on its own line for fn, impl, enum, struct
-brace_style = "AlwaysNextLine"
+fn_params_layout = "Compressed"
 
-# Allman-style for control flow: if, match, for, while, loop
-# ⚠️ nightly-only
-control_brace_style = "AlwaysNextLine"
-
-# Trailing comma after match arm blocks: => { ... },
-match_block_trailing_comma = true
-
-# Standard 4-space indentation
+newline_style = "Unix"
 tab_spaces = 4
 hard_tabs = false
 
-# Wrap long lines at 100 chars (generous for nested match arms)
-max_width = 150
-
-# Keep short items on one line where possible
 use_small_heuristics = "Default"
+max_width = 150
+fn_call_width = 150
 
-# Trailing commas in multi-line argument/parameter lists
+brace_style = "AlwaysNextLine" # NIGHTLY
+control_brace_style = "AlwaysNextLine" # NIGHTLY
+
 trailing_comma = "Vertical"
+match_block_trailing_comma = true
+binop_separator = "Front" # NIGHTLY
+float_literal_trailing_zero = "Always" # NIGHTLY
 
-# Preserve existing blank lines between items (up to 1)
-# ⚠️ nightly-only
-blank_lines_upper_bound = 1
+blank_lines_upper_bound = 1 # NIGHTLY
 
-# Normalize doc comments style
 normalize_comments = false
+
+force_explicit_abi = true
+
+match_arm_leading_pipes = "Never"
+
+merge_derives = true
+
+# removed_nested_parens = true
+reorder_imports = false
+reorder_modules = false
+use_field_init_shorthand = false
+use_try_shorthand = true
+format_code_in_doc_comments = true # NIGHTLY
+format_macro_matchers = true # NIGHTLY
+format_macro_bodies = true # NIGHTLY
+hex_literal_case = "Lower" # NIGHTLY
+reorder_impl_items = false # NIGHTLY

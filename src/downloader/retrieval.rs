@@ -83,10 +83,7 @@ impl fmt::Display for RetrieveError
             },
             RetrieveError::ProviderInfoContainsNoBody =>
             {
-                write!(
-                    formatter,
-                    "Failed to retrieve episodes from Dispatcharr, because response does not contain HTTP body."
-                )
+                write!(formatter, "Failed to retrieve episodes from Dispatcharr, because response does not contain HTTP body.")
             },
             RetrieveError::FailedToParseJSON { error_type } =>
             {
@@ -111,10 +108,7 @@ pub fn retrieve_episodes(options: &DownloadOptions) -> Result<(Seasons, M3UID), 
             };
         })?;
 
-    let url = format!(
-        "{}/api/vod/series/{}/provider-info/?include_episodes=true",
-        options.url, options.recipe.series_id
-    );
+    let url = format!("{}/api/vod/series/{}/provider-info/?include_episodes=true", options.url, options.recipe.series_id);
 
     trace!("GET URL: {}", url);
 

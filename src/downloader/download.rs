@@ -57,11 +57,7 @@ impl fmt::Display for DownloadError
             },
             DownloadError::DownloadFailed { title, exit_code } =>
             {
-                write!(
-                    formatter,
-                    "Download: \"{}\" exited with exit code: {} and subsequently failed.",
-                    title, exit_code
-                )
+                write!(formatter, "Download: \"{}\" exited with exit code: {} and subsequently failed.", title, exit_code)
             },
             DownloadError::FailedToCreateFile { title, file, error_type } =>
             {
@@ -154,11 +150,7 @@ impl fmt::Display for ValidationError
             },
             ValidationError::DurationMismatch { expected_secs, actual_secs } =>
             {
-                write!(
-                    formatter,
-                    "Duration mismatch, expected file to be {} seconds long, got {} seconds.",
-                    expected_secs, actual_secs
-                )
+                write!(formatter, "Duration mismatch, expected file to be {} seconds long, got {} seconds.", expected_secs, actual_secs)
             },
         }
     }
@@ -170,11 +162,7 @@ impl fmt::Display for ValidationError
 pub fn download_episode(options: &DownloadOptions, episode: &Episode, m3u_id: M3UID) -> Result<(), DownloadError>
 {
     let url = format!("{}/proxy/vod/episode/{}?m3u_account_id={}", options.url, episode.uuid, m3u_id);
-    let file_name = format!(
-        "{}.{}",
-        episode.title.chars().filter(|c| !c.is_whitespace()).collect::<String>(),
-        episode.container_extension
-    );
+    let file_name = format!("{}.{}", episode.title.chars().filter(|c| !c.is_whitespace()).collect::<String>(), episode.container_extension);
     let output_file: PathBuf = options.output_folder.join(PathBuf::from(file_name));
 
     // Handle overwrites
@@ -184,10 +172,7 @@ pub fn download_episode(options: &DownloadOptions, episode: &Episode, m3u_id: M3
         {
             OverwriteMode::None =>
             {
-                info!(
-                    "Episode \"{}\" already exists on disk, OverwriteMode::None selected, so skipping this episode.",
-                    episode.title
-                );
+                info!("Episode \"{}\" already exists on disk, OverwriteMode::None selected, so skipping this episode.", episode.title);
                 return Ok(());
             },
             OverwriteMode::Bad =>
@@ -245,10 +230,7 @@ pub fn download_episode(options: &DownloadOptions, episode: &Episode, m3u_id: M3
             },
             OverwriteMode::All =>
             {
-                info!(
-                    "Episode \"{}\" already exists on disk, OverwriteMode::All selected, so overwriting...",
-                    episode.title
-                );
+                info!("Episode \"{}\" already exists on disk, OverwriteMode::All selected, so overwriting...", episode.title);
             },
         }
     }
@@ -260,13 +242,7 @@ pub fn download_episode(options: &DownloadOptions, episode: &Episode, m3u_id: M3
     }; // Must be initialized
     for attempt in 1..=options.max_reties
     {
-        match download_attempt(
-            &url,
-            &output_file,
-            episode.container_extension.as_str(),
-            episode.seconds,
-            episode.title.as_str(),
-        )
+        match download_attempt(&url, &output_file, episode.container_extension.as_str(), episode.seconds, episode.title.as_str())
         {
             Ok(_) => return Ok(()),
             Err(e) =>
@@ -281,11 +257,7 @@ pub fn download_episode(options: &DownloadOptions, episode: &Episode, m3u_id: M3
 }
 
 fn download_attempt(
-    url: &str,
-    output_file: &Path,
-    container_extension: &str,
-    expected_secs: Option<u64>,
-    debug_title: &str,
+    url: &str, output_file: &Path, container_extension: &str, expected_secs: Option<u64>, debug_title: &str,
 ) -> Result<(), DownloadError>
 {
     let client = Client::builder()
@@ -334,10 +306,7 @@ fn download_attempt(
         {
             Ok(actual_seconds) =>
             {
-                info!(
-                    "Validation successful for \"{}\": found {}s, expected {}s",
-                    debug_title, actual_seconds, seconds
-                );
+                info!("Validation successful for \"{}\": found {}s, expected {}s", debug_title, actual_seconds, seconds);
                 Ok(())
             },
             Err(error) =>
@@ -421,11 +390,7 @@ fn validate_download(output_file: &Path, container_extension: &str, expected_sec
                             _ =>
                             {
                                 // Could be a tiny hiccup
-                                warning!(
-                                    "[Validation attempt {}/3] Validation failed with non-critical error: {}, retrying.",
-                                    i,
-                                    error
-                                );
+                                warning!("[Validation attempt {}/3] Validation failed with non-critical error: {}, retrying.", i, error);
                                 last_error = Some(error);
                             },
                         }
