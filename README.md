@@ -37,7 +37,7 @@ Contributions are welcome. Since this is a core library, changes here affect bot
 3. Make your changes and ensure everything compiles (`cargo build`)
 4. Run tests (`cargo test`)
 5. Run the linter (`cargo clippy`)
-6. Format your code (`cargo fmt`)
+6. Format your code (`cargo fmt` from [`rustfmt`](https://github.com/rust-lang/rustfmt))
 7. Open a pull request with a clear description of what you changed and why
 
 ### Guidelines

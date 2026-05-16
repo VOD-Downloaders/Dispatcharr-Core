@@ -4,9 +4,9 @@
 
 **Developer's responsibilities**
 
-- [ ] All tests pass `cargo test`
-- [ ] No clippy warnings `cargo clippy`
-- [ ] Formatting is the same as the rest of the project `cargo fmt`
+- [ ] All tests pass (`cargo test`)
+- [ ] No clippy warnings (`cargo clippy`)
+- [ ] Formatting follows rust standard (`cargo fmt` from [rustfmt](https://github.com/rust-lang/rustfmt))
 
 ## Changes
 
