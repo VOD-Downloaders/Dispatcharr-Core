@@ -1,10 +1,15 @@
-use std::{fs::{File, OpenOptions}, io::Write, path::Path, sync::Mutex};
+use std::{
+    fs::{File, OpenOptions},
+    io::Write,
+    path::Path,
+    sync::Mutex,
+};
 
 /////////////////////////////////////////////////////
 // LogLevel
 /////////////////////////////////////////////////////
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum LogLevel 
+pub enum LogLevel
 {
     Trace,
     Info,
@@ -31,7 +36,7 @@ impl ConsoleSink
     pub fn new(minimum_level: Option<LogLevel>) -> Self
     {
         Self {
-            minimum_level: minimum_level.unwrap_or(LogLevel::Info)
+            minimum_level: minimum_level.unwrap_or(LogLevel::Info),
         }
     }
 }
@@ -59,11 +64,8 @@ impl FileSink
     pub fn new(file_path: &Path, minimum_level: Option<LogLevel>) -> Result<Self, std::io::Error>
     {
         Ok(Self {
-            output_file: OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(file_path)?,
-            minimum_level: minimum_level.unwrap_or(LogLevel::Info)
+            output_file: OpenOptions::new().create(true).append(true).open(file_path)?,
+            minimum_level: minimum_level.unwrap_or(LogLevel::Info),
         })
     }
 }

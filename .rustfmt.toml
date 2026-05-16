@@ -1,0 +1,36 @@
+# .rustfmt.toml
+
+edition = "2021"
+
+# Required to unlock nightly-only options below
+unstable_features = true
+
+# Allman-style: opening brace on its own line for fn, impl, enum, struct
+brace_style = "AlwaysNextLine"
+
+# Allman-style for control flow: if, match, for, while, loop
+# ⚠️ nightly-only
+control_brace_style = "AlwaysNextLine"
+
+# Trailing comma after match arm blocks: => { ... },
+match_block_trailing_comma = true
+
+# Standard 4-space indentation
+tab_spaces = 4
+hard_tabs = false
+
+# Wrap long lines at 100 chars (generous for nested match arms)
+max_width = 150
+
+# Keep short items on one line where possible
+use_small_heuristics = "Default"
+
+# Trailing commas in multi-line argument/parameter lists
+trailing_comma = "Vertical"
+
+# Preserve existing blank lines between items (up to 1)
+# ⚠️ nightly-only
+blank_lines_upper_bound = 1
+
+# Normalize doc comments style
+normalize_comments = false
