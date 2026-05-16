@@ -1,7 +1,7 @@
 name: Feature Request
 description: Request a new feature.
-title: "[Feature Request]: "
-labels: ["feature"]
+title: "[Feature Request] "
+labels: ["enhancement"]
 assignees:
   - ggjorven
 type: feature
@@ -16,14 +16,21 @@ body:
     validations:
       required: true
   - type: textarea
-    id: issues
-    attributes:
-      label: Relevant issues
-      description: Any issues that could be solved with this feature
-  - type: textarea
     id: implementation
     attributes:
       label: How to implement
       description: If applicable, how to implement this feature.
+      placeholder: Steps to implement this feature.
+      value: "
+        1. Step 1
+        2. Step 2
+      "
+    validations:
+      required: false
+  - type: textarea
+    id: issues
+    attributes:
+      label: Relevant issues
+      description: Any issues that could be solved with this feature
     validations:
       required: false
