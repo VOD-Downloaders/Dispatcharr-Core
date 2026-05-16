@@ -1,7 +1,11 @@
 [package]
-name = "dispatcharr-vod-downloader-core"
+name = "dispatcharr_vod_downloader_core"
+description = "dispatcharr_vod_downloader_core is the core for downloading VODs off of Dispatcharr used in the respective plugin and cli."
 version = "0.1.0"
 edition = "2024"
+license = "GPL-2.0-only"
+readme = "README.md"
+repository = "https://github.com/VOD-Downloaders/Dispatcharr-Core"
 
 [dependencies]
 colored = "3.1.1"
