@@ -1,4 +1,4 @@
-# Feature title
+# Title
 
 ## Checklist before merge
 
