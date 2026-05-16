@@ -1,9 +1,9 @@
-mod types;
-mod retrieval;
 mod download;
 mod options;
+mod retrieval;
+mod types;
 
-pub use types::*;
-pub use retrieval::*;
 pub use download::*;
 pub use options::*;
+pub use retrieval::*;
+pub use types::*;
