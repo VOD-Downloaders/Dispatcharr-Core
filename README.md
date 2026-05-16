@@ -5,6 +5,9 @@ The core library powering all Dispatcharr VOD downloading functionality. This cr
 - [Dispatcharr-cli](https://github.com/VOD-Downloaders/Dispatcharr-cli) - Command-line interface
 - [Dispatcharr-plugin](https://github.com/VOD-Downloaders/Dispatcharr-plugin) - Dispatcharr plugin
 
+> [!WARNING]
+> This software is currently in alpha stages, there may be bugs and breaking changes to the API.
+
 ## Features
 
 - Authenticate and communicate with a [Dispatcharr](https://github.com/Dispatcharr/Dispatcharr) instance via its REST API
@@ -27,7 +30,7 @@ This crate is not (yet) published to crates.io. Pin to a specific commit or tag 
 
 ## Contributing
 
-Contributions are welcome. Since this is a core library, changes here can affect both the CLI and plugin — please keep that in mind.
+Contributions are welcome. Since this is a core library, changes here affect both the CLI and plugin.
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/my-change`)
@@ -36,8 +39,6 @@ Contributions are welcome. Since this is a core library, changes here can affect
 5. Run the linter (`cargo clippy -- -D warnings`)
 6. Format your code (`cargo fmt`)
 7. Open a pull request with a clear description of what you changed and why
-
-If you're fixing a bug or adding a feature that affects [Dispatcharr-cli](https://github.com/VOD-Downloaders/Dispatcharr-cli) or [Dispatcharr-plugin](https://github.com/VOD-Downloaders/Dispatcharr-plugin), please open corresponding issues or PRs in those repositories as well.
 
 ### Guidelines
 
