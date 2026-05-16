@@ -1,5 +1,4 @@
 #[macro_use]
-mod logging;
-mod cli;
-mod recipe;
-mod downloader;
+pub mod logging;
+pub mod recipe;
+pub mod downloader;

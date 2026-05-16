@@ -3,7 +3,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 
 use super::types::*;
-use super::super::cli::DownloadOptions;
+use super::DownloadOptions;
 
 /////////////////////////////////////////////////////
 // JSON

@@ -10,12 +10,12 @@ use symphonia::core::formats::{FormatOptions, SeekMode, SeekTo};
 use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
-use symphonia::core::probe::ProbeResult;
 use symphonia::core::units::Time;
 
 use super::types::*;
-use super::super::cli::OverwriteMode;
-use super::super::cli::DownloadOptions;
+
+use super::OverwriteMode;
+use super::DownloadOptions;
 
 /////////////////////////////////////////////////////
 // DownloadError & ValidationError
