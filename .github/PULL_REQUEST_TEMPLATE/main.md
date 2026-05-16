@@ -6,7 +6,7 @@
 
 - [ ] All tests pass (`cargo test`)
 - [ ] No clippy warnings (`cargo clippy`)
-- [ ] Formatting follows rust standard (`cargo fmt` from [rustfmt](https://github.com/rust-lang/rustfmt))
+- [ ] Formatting follows projects specification (`cargo +nightly fmt` from [rustfmt](https://github.com/rust-lang/rustfmt))
 
 ## Changes
 
