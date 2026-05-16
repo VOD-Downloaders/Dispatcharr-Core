@@ -21,10 +21,7 @@ body:
       label: How to implement
       description: If applicable, how to implement this feature.
       placeholder: Steps to implement this feature.
-      value: "
-        1. Step 1
-        2. Step 2
-      "
+      value: "1. Step 1..."
     validations:
       required: false
   - type: textarea
