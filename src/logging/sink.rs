@@ -1,9 +1,4 @@
-use std::{
-    fs::{File, OpenOptions},
-    io::Write,
-    path::Path,
-    sync::Mutex,
-};
+use std::sync::Mutex;
 
 /////////////////////////////////////////////////////
 // LogLevel
@@ -23,62 +18,6 @@ pub enum LogLevel
 pub trait Sink: Send
 {
     fn log(&mut self, log_level: LogLevel, message: &str);
-}
-
-#[derive(Debug)]
-pub struct ConsoleSink
-{
-    pub minimum_level: LogLevel,
-}
-
-impl ConsoleSink
-{
-    pub fn new(minimum_level: Option<LogLevel>) -> Self
-    {
-        Self {
-            minimum_level: minimum_level.unwrap_or(LogLevel::Info),
-        }
-    }
-}
-
-impl Sink for ConsoleSink
-{
-    fn log(&mut self, log_level: LogLevel, message: &str)
-    {
-        if log_level >= self.minimum_level
-        {
-            println!("{}", message);
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct FileSink
-{
-    pub output_file: File,
-    pub minimum_level: LogLevel,
-}
-
-impl FileSink
-{
-    pub fn new(file_path: &Path, minimum_level: Option<LogLevel>) -> Result<Self, std::io::Error>
-    {
-        Ok(Self {
-            output_file: OpenOptions::new().create(true).append(true).open(file_path)?,
-            minimum_level: minimum_level.unwrap_or(LogLevel::Info),
-        })
-    }
-}
-
-impl Sink for FileSink
-{
-    fn log(&mut self, log_level: LogLevel, message: &str)
-    {
-        if log_level >= self.minimum_level
-        {
-            let _ = self.output_file.write_all(message.as_bytes());
-        }
-    }
 }
 
 /////////////////////////////////////////////////////

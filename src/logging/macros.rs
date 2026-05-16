@@ -3,7 +3,6 @@
 /////////////////////////////////////////////////////
 macro_rules! log {
     ($level:expr, $fmt:literal $(, $arg:expr)*) => {{
-        use colored::Colorize;
         use crate::logging::log_to_all_sinks;
 
         let now = chrono::Local::now().format("%H:%M:%S");
@@ -11,9 +10,9 @@ macro_rules! log {
         match $level
         {
             LogLevel::Trace => log_to_all_sinks($level.clone(), format!("[{}] [TRACE] - {}", now, format_args!($fmt $(, $arg)*)).as_str()),
-            LogLevel::Info  => log_to_all_sinks($level.clone(), format!("[{}] [INFO]  - {}", now, format_args!($fmt $(, $arg)*)).green().to_string().as_str()),
-            LogLevel::Warn  => log_to_all_sinks($level.clone(), format!("[{}] [WARN]  - {}", now, format_args!($fmt $(, $arg)*)).yellow().to_string().as_str()),
-            LogLevel::Error => log_to_all_sinks($level.clone(), format!("[{}] [ERROR] - {}", now, format_args!($fmt $(, $arg)*)).red().to_string().as_str()),
+            LogLevel::Info  => log_to_all_sinks($level.clone(), format!("[{}] [INFO]  - {}", now, format_args!($fmt $(, $arg)*)).as_str()),
+            LogLevel::Warn  => log_to_all_sinks($level.clone(), format!("[{}] [WARN]  - {}", now, format_args!($fmt $(, $arg)*)).as_str()),
+            LogLevel::Error => log_to_all_sinks($level.clone(), format!("[{}] [ERROR] - {}", now, format_args!($fmt $(, $arg)*)).as_str()),
         };
     }};
 }
