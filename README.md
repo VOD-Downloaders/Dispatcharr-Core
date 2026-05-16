@@ -36,7 +36,7 @@ Contributions are welcome. Since this is a core library, changes here affect bot
 2. Create a feature branch (`git checkout -b feature/my-change`)
 3. Make your changes and ensure everything compiles (`cargo build`)
 4. Run tests (`cargo test`)
-5. Run the linter (`cargo clippy -- -D warnings`)
+5. Run the linter (`cargo clippy`)
 6. Format your code (`cargo fmt`)
 7. Open a pull request with a clear description of what you changed and why
 
@@ -58,4 +58,4 @@ Contributions are welcome. Since this is a core library, changes here affect bot
 
 ## License
 
-This project is licensed under the **GNU General Public License v2.0**. See [LICENSE.txt](LICENSE.txt) for the full license text.
+This project is licensed under the **GNU General Public License v2.0**. See [LICENSE](LICENSE.txt) for the full license text.
