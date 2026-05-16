@@ -1,4 +1,4 @@
-# Dispatcharr-Core
+# Dispatcharr-core
 
 The core library powering all Dispatcharr VOD downloading functionality. This crate is **not user-facing** — it exposes no binaries or UI. If you're looking to download VODs, head to the consumer projects built on top of this library:
 
@@ -23,7 +23,7 @@ Add this crate to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-dispatcharr_download_core = { git = "https://github.com/VOD-Downloaders/Dispatcharr-Core" }
+dispatcharr_download_core = { git = "https://github.com/VOD-Downloaders/Dispatcharr-core" }
 ```
 
 This crate is not (yet) published to crates.io. Pin to a specific commit or tag for stability in production use.
